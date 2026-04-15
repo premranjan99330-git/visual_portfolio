@@ -1,0 +1,235 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Gradient Descent Visualizer</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;700&family=Monument+Extended&display=swap');
+  @import url('https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@400;700&family=Big+Shoulders+Text:wght@900&display=swap');
+  :root{--bg:#f5f0e8;--ink:#0d0d0d;--a:#c62828;--b:#1565c0;--c:#2e7d32;--border:#d0c8ba;}
+  *{margin:0;padding:0;box-sizing:border-box;}
+  body{background:var(--bg);font-family:'Chakra Petch',monospace;color:var(--ink);}
+  .hdr{background:var(--ink);padding:14px 36px;display:flex;justify-content:space-between;align-items:center;}
+  .brand{font-family:'Big Shoulders Text',sans-serif;font-size:1.6rem;font-weight:900;color:#f5f0e8;letter-spacing:3px;}
+  .brand em{color:#ef5350;font-style:normal;}
+  .sub{font-size:0.55rem;color:#555;letter-spacing:3px;}
+  .controls{display:flex;gap:10px;padding:12px 36px;border-bottom:2px solid var(--ink);flex-wrap:wrap;align-items:center;}
+  .ctrl{display:flex;flex-direction:column;gap:3px;}
+  label{font-size:0.5rem;letter-spacing:2px;color:#888;}
+  input[type=range]{accent-color:var(--a);width:100px;}
+  .btn{background:var(--a);color:#fff;border:none;font-family:'Chakra Petch',monospace;font-size:0.65rem;padding:7px 18px;cursor:pointer;letter-spacing:1px;}
+  .btn:hover{background:#b71c1c;}
+  .btn.b{background:var(--b);}
+  .btn.b:hover{background:#0d47a1;}
+  select{background:#fff;border:1.5px solid var(--ink);font-family:'Chakra Petch',monospace;font-size:0.65rem;padding:5px 8px;}
+  .layout{display:grid;grid-template-columns:3fr 1fr;gap:0;}
+  .main-canvas-wrap{border-right:2px solid var(--ink);border-bottom:2px solid var(--ink);padding:20px;position:relative;}
+  .canvas-label{position:absolute;top:28px;left:28px;font-size:0.6rem;letter-spacing:2px;color:#888;}
+  canvas{display:block;width:100%;}
+  .side{border-bottom:2px solid var(--ink);}
+  .side-block{border-bottom:1px solid var(--border);padding:14px 16px;}
+  .side-title{font-size:0.55rem;letter-spacing:2px;color:#888;margin-bottom:10px;}
+  .stat{display:flex;justify-content:space-between;font-size:0.65rem;padding:3px 0;border-bottom:1px solid var(--border);}
+  .stat:last-child{border:none;}
+  .stat-v{font-family:'Big Shoulders Text',sans-serif;font-size:1.2rem;font-weight:900;color:var(--a);}
+  .algo-btn{width:100%;text-align:left;background:transparent;border:1px solid var(--border);font-family:'Chakra Petch',monospace;font-size:0.6rem;padding:6px 10px;margin-bottom:4px;cursor:pointer;color:var(--ink);}
+  .algo-btn:hover,.algo-btn.active{background:var(--ink);color:#f5f0e8;border-color:var(--ink);}
+  .path-legend{display:flex;flex-direction:column;gap:4px;}
+  .leg-row{display:flex;align-items:center;gap:6px;font-size:0.6rem;}
+  .leg-dash{width:20px;height:2px;}
+</style>
+</head>
+<body>
+<div class="hdr">
+  <div class="brand">GRADIENT <em>DESCENT</em> VISUALIZER</div>
+  <div class="sub">ETHAR.AI / OPTIMIZATION LANDSCAPE</div>
+</div>
+<div class="controls">
+  <div class="ctrl"><label>LEARNING RATE</label><input type="range" id="lr" min="1" max="100" value="10"><span id="lrVal" style="font-size:0.7rem">0.10</span></div>
+  <div class="ctrl"><label>FUNCTION</label>
+    <select id="func">
+      <option value="bowl">Convex Bowl</option>
+      <option value="saddle">Saddle Point</option>
+      <option value="beale">Beale's Function</option>
+      <option value="himmelblau">Himmelblau</option>
+    </select>
+  </div>
+  <div class="ctrl"><label>START POSITION</label><button class="btn b" onclick="randomStart()">RANDOM</button></div>
+  <div class="ctrl"><label>&nbsp;</label><button class="btn" id="stepBtn" onclick="doStep()">STEP</button></div>
+  <div class="ctrl"><label>&nbsp;</label><button class="btn" id="runBtn" onclick="toggleRun()">▶ RUN</button></div>
+  <div class="ctrl"><label>&nbsp;</label><button class="btn b" onclick="resetAll()">RESET</button></div>
+</div>
+<div class="layout">
+  <div class="main-canvas-wrap">
+    <div class="canvas-label">LOSS LANDSCAPE (CONTOUR MAP)</div>
+    <canvas id="mainC" height="440" style="cursor:crosshair"></canvas>
+  </div>
+  <div class="side">
+    <div class="side-block">
+      <div class="side-title">OPTIMIZER</div>
+      <button class="algo-btn active" id="a0" onclick="setAlgo(0)">GRADIENT DESCENT</button>
+      <button class="algo-btn" id="a1" onclick="setAlgo(1)">SGD + MOMENTUM</button>
+      <button class="algo-btn" id="a2" onclick="setAlgo(2)">ADAGRAD</button>
+      <button class="algo-btn" id="a3" onclick="setAlgo(3)">ADAM</button>
+    </div>
+    <div class="side-block">
+      <div class="side-title">CURRENT STATE</div>
+      <div class="stat"><span>ITERATION</span><span class="stat-v" id="sIter">0</span></div>
+      <div class="stat"><span>LOSS</span><span class="stat-v" id="sLoss">—</span></div>
+      <div class="stat"><span>‖∇f‖</span><span class="stat-v" id="sGrad">—</span></div>
+      <div class="stat"><span>LR</span><span class="stat-v" id="sLR">0.10</span></div>
+      <div class="stat"><span>CONVERGED</span><span class="stat-v" id="sConv" style="color:#2e7d32">—</span></div>
+    </div>
+    <div class="side-block">
+      <div class="side-title">LOSS CURVE</div>
+      <canvas id="lossC" height="100" style="width:100%"></canvas>
+    </div>
+    <div class="side-block">
+      <div class="side-title">PATHS SHOWN</div>
+      <div class="path-legend">
+        <div class="leg-row"><div class="leg-dash" style="background:#c62828"></div>GD</div>
+        <div class="leg-row"><div class="leg-dash" style="background:#1565c0"></div>Momentum</div>
+        <div class="leg-row"><div class="leg-dash" style="background:#2e7d32"></div>Adam</div>
+      </div>
+      <div style="margin-top:10px;font-size:0.6rem;color:#888;">Click canvas to set start position</div>
+    </div>
+  </div>
+</div>
+<script>
+let pos={x:1.5,y:1.5}, algo=0, iter=0, running=false, timer=null;
+let lossHistory=[], path=[];
+let momentum={x:0,y:0}, mSq={x:1e-8,y:1e-8}, v={x:0,y:0};
+const RANGE=[-3,3];
+function f(x,y,fn){
+  if(fn==='bowl')return x*x+y*y;
+  if(fn==='saddle')return x*x-y*y;
+  if(fn==='beale')return (1.5-x+x*y)**2+(2.25-x+x*y*y)**2+(2.625-x+x*y*y*y)**2;
+  if(fn==='himmelblau')return (x*x+y-11)**2+(x+y*y-7)**2;
+  return x*x+y*y;
+}
+function grad(x,y,fn,h=0.001){
+  return{x:(f(x+h,y,fn)-f(x-h,y,fn))/(2*h),y:(f(x,y+h,fn)-f(x,y-h,fn))/(2*h)};
+}
+function getLR(){return +document.getElementById('lr').value/100;}
+function getFn(){return document.getElementById('func').value;}
+function setAlgo(i){algo=i;document.querySelectorAll('.algo-btn').forEach((b,bi)=>{b.classList.toggle('active',bi===i);});resetState();}
+function resetState(){iter=0;lossHistory=[];path=[];momentum={x:0,y:0};mSq={x:1e-8,y:1e-8};v={x:0,y:0};draw();}
+function randomStart(){pos={x:(Math.random()-0.5)*4,y:(Math.random()-0.5)*4};resetState();}
+function doStep(){
+  const lr=getLR(), fn=getFn();
+  const g=grad(pos.x,pos.y,fn);
+  const gnorm=Math.sqrt(g.x*g.x+g.y*g.y);
+  path.push({...pos});
+  if(algo===0){pos.x-=lr*g.x;pos.y-=lr*g.y;}
+  else if(algo===1){
+    const m=0.9;
+    momentum.x=m*momentum.x+lr*g.x; momentum.y=m*momentum.y+lr*g.y;
+    pos.x-=momentum.x; pos.y-=momentum.y;
+  }
+  else if(algo===2){
+    mSq.x+=g.x*g.x; mSq.y+=g.y*g.y;
+    pos.x-=(lr/Math.sqrt(mSq.x))*g.x; pos.y-=(lr/Math.sqrt(mSq.y))*g.y;
+  }
+  else if(algo===3){
+    const b1=0.9,b2=0.999,eps=1e-8;
+    momentum.x=b1*momentum.x+(1-b1)*g.x; momentum.y=b1*momentum.y+(1-b1)*g.y;
+    v.x=b2*v.x+(1-b2)*g.x*g.x; v.y=b2*v.y+(1-b2)*g.y*g.y;
+    const mhx=momentum.x/(1-Math.pow(b1,iter+1)), mhy=momentum.y/(1-Math.pow(b1,iter+1));
+    const vhx=v.x/(1-Math.pow(b2,iter+1)), vhy=v.y/(1-Math.pow(b2,iter+1));
+    pos.x-=lr*mhx/(Math.sqrt(vhx)+eps); pos.y-=lr*mhy/(Math.sqrt(vhy)+eps);
+  }
+  pos.x=Math.max(-2.9,Math.min(2.9,pos.x)); pos.y=Math.max(-2.9,Math.min(2.9,pos.y));
+  iter++;
+  const loss=f(pos.x,pos.y,fn);
+  lossHistory.push(loss);
+  document.getElementById('sIter').textContent=iter;
+  document.getElementById('sLoss').textContent=loss.toFixed(4);
+  document.getElementById('sGrad').textContent=gnorm.toFixed(4);
+  document.getElementById('sLR').textContent=lr.toFixed(3);
+  document.getElementById('sConv').textContent=gnorm<0.01?'YES ✓':'NO';
+  draw(); drawLoss();
+  if(gnorm<0.001||iter>500)stopRun();
+}
+function toggleRun(){if(running)stopRun();else{running=true;document.getElementById('runBtn').textContent='⏸ PAUSE';timer=setInterval(doStep,60);}}
+function stopRun(){running=false;document.getElementById('runBtn').textContent='▶ RUN';clearInterval(timer);}
+function resetAll(){stopRun();pos={x:1.5,y:1.5};resetState();}
+function draw(){
+  const c=document.getElementById('mainC');
+  const W=c.parentElement.clientWidth-40; c.width=W; c.height=440;
+  const ctx=c.getContext('2d'); ctx.clearRect(0,0,W,440);
+  const fn=getFn();
+  const pad=30;
+  const toX=v=>(v-RANGE[0])/(RANGE[1]-RANGE[0])*(W-pad*2)+pad;
+  const toY=v=>(v-RANGE[0])/(RANGE[1]-RANGE[0])*(440-pad*2)+pad;
+  // Contour map
+  const res=60;
+  let minF=Infinity,maxF=-Infinity;
+  const grid=[];
+  for(let i=0;i<res;i++){
+    grid[i]=[];
+    for(let j=0;j<res;j++){
+      const gx=RANGE[0]+i/res*(RANGE[1]-RANGE[0]);
+      const gy=RANGE[0]+j/res*(RANGE[1]-RANGE[0]);
+      const fv=f(gx,gy,fn);
+      grid[i][j]=fv; minF=Math.min(minF,fv); maxF=Math.max(maxF,fv);
+    }
+  }
+  const cW=(W-pad*2)/res, cH=(440-pad*2)/res;
+  for(let i=0;i<res;i++){
+    for(let j=0;j<res;j++){
+      const t=Math.min(1,(grid[i][j]-minF)/(maxF-minF+0.001));
+      const r=Math.round(20+t*220), g2=Math.round(5+t*30), b=Math.round(80-t*60);
+      ctx.fillStyle=`rgb(${r},${g2},${b})`;
+      ctx.fillRect(pad+i*cW,pad+j*cH,cW+1,cH+1);
+    }
+  }
+  // Path
+  if(path.length>1){
+    ctx.beginPath(); ctx.strokeStyle='rgba(255,200,0,0.8)'; ctx.lineWidth=2;
+    path.forEach((p,i)=>{const x=toX(p.x),y=toY(p.y);i===0?ctx.moveTo(x,y):ctx.lineTo(x,y);});
+    ctx.stroke();
+    path.forEach((p,i)=>{
+      if(i%5===0){ctx.beginPath();ctx.arc(toX(p.x),toY(p.y),2,0,Math.PI*2);ctx.fillStyle='#ffd600';ctx.fill();}
+    });
+  }
+  // Current pos
+  ctx.beginPath(); ctx.arc(toX(pos.x),toY(pos.y),8,0,Math.PI*2);
+  ctx.fillStyle='#ff1744'; ctx.fill();
+  ctx.strokeStyle='#fff'; ctx.lineWidth=2; ctx.stroke();
+  // Axes
+  ctx.strokeStyle='rgba(255,255,255,0.2)'; ctx.lineWidth=0.5; ctx.setLineDash([3,3]);
+  ctx.beginPath(); ctx.moveTo(toX(0),pad); ctx.lineTo(toX(0),440-pad); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(pad,toY(0)); ctx.lineTo(W-pad,toY(0)); ctx.stroke();
+  ctx.setLineDash([]);
+}
+function drawLoss(){
+  const c=document.getElementById('lossC');
+  c.width=c.parentElement.clientWidth-32; c.height=100;
+  const ctx=c.getContext('2d'); ctx.clearRect(0,0,c.width,100);
+  if(lossHistory.length<2) return;
+  const last=lossHistory.slice(-80);
+  const maxL=Math.max(...last); const minL=Math.min(...last,0);
+  ctx.beginPath(); ctx.strokeStyle='#c62828'; ctx.lineWidth=1.5;
+  last.forEach((v,i)=>{
+    const x=i/(last.length-1)*(c.width-10)+5;
+    const y=5+((maxL-v)/Math.max(maxL-minL,0.001))*90;
+    i===0?ctx.moveTo(x,y):ctx.lineTo(x,y);
+  });
+  ctx.stroke();
+}
+document.getElementById('mainC').addEventListener('click',function(e){
+  const rect=this.getBoundingClientRect();
+  const px=(e.clientX-rect.left)/rect.width;
+  const py=(e.clientY-rect.top)/rect.height;
+  const pad=30/(this.width);
+  pos.x=RANGE[0]+(px-pad)/(1-2*pad)*(RANGE[1]-RANGE[0]);
+  pos.y=RANGE[0]+(py-30/440)/(1-60/440)*(RANGE[1]-RANGE[0]);
+  pos.x=Math.max(-2.9,Math.min(2.9,pos.x)); pos.y=Math.max(-2.9,Math.min(2.9,pos.y));
+  resetState();
+});
+document.getElementById('lr').addEventListener('input',function(){document.getElementById('lrVal').textContent=(this.value/100).toFixed(2);document.getElementById('sLR').textContent=(this.value/100).toFixed(3);});
+document.getElementById('func').addEventListener('change',resetAll);
+draw();
+</script>
+</body>
+</html>

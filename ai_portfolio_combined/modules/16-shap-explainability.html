@@ -1,0 +1,313 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SHAP Explainability Dashboard</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Source+Code+Pro:wght@400;600&family=Black+Han+Sans&display=swap');
+  :root{--bg:#fefce8;--ink:#1c1917;--pos:#dc2626;--neg:#2563eb;--zero:#94a3b8;--border:#e7e5e4;--surface:#fff;}
+  *{margin:0;padding:0;box-sizing:border-box;}
+  body{background:var(--bg);font-family:'Source Code Pro',monospace;color:var(--ink);}
+  .hdr{background:var(--ink);padding:14px 36px;display:flex;justify-content:space-between;align-items:center;}
+  .brand{font-family:'Black Han Sans',sans-serif;font-size:1.6rem;letter-spacing:4px;color:#fefce8;}
+  .brand em{color:#fbbf24;font-style:normal;}
+  .sub{font-size:0.55rem;color:#78716c;letter-spacing:3px;}
+  .tabs{display:flex;gap:0;border-bottom:3px solid var(--ink);}
+  .tab{padding:10px 24px;font-size:0.65rem;letter-spacing:2px;cursor:pointer;border-right:1px solid var(--border);}
+  .tab.active{background:var(--ink);color:#fefce8;}
+  .tab:hover:not(.active){background:var(--border);}
+  .layout{display:grid;grid-template-columns:260px 1fr;gap:0;}
+  .sidebar{border-right:2px solid var(--ink);padding:16px;}
+  .sb-title{font-size:0.55rem;letter-spacing:3px;color:#a8a29e;margin-bottom:10px;}
+  .instance-card{border:1.5px solid var(--border);padding:10px;margin-bottom:8px;cursor:pointer;transition:border-color 0.15s;}
+  .instance-card:hover,.instance-card.active{border-color:var(--ink);}
+  .instance-card.active{background:var(--ink);color:#fefce8;}
+  .ic-id{font-family:'Black Han Sans',sans-serif;font-size:1rem;letter-spacing:2px;}
+  .ic-pred{font-size:0.6rem;margin-top:2px;}
+  .ic-prob{font-size:0.7rem;font-weight:600;margin-top:4px;}
+  .main{padding:20px 24px;}
+  .section-title{font-family:'Black Han Sans',sans-serif;font-size:1rem;letter-spacing:3px;margin-bottom:14px;}
+  canvas{display:block;width:100%;}
+  .feature-table{width:100%;border-collapse:collapse;font-size:0.65rem;}
+  .feature-table th{text-align:left;padding:6px 8px;border-bottom:2px solid var(--ink);font-size:0.55rem;letter-spacing:2px;}
+  .feature-table td{padding:6px 8px;border-bottom:1px solid var(--border);}
+  .shap-bar{height:14px;display:inline-block;min-width:4px;}
+  .shap-pos{background:var(--pos);}
+  .shap-neg{background:var(--neg);}
+  .verdict{display:inline-block;padding:2px 8px;font-size:0.5rem;border-radius:2px;}
+  .verdict.churn{background:#fee2e2;color:var(--pos);}
+  .verdict.retain{background:#dbeafe;color:var(--neg);}
+  .grid2{display:grid;grid-template-columns:1fr 1fr;gap:20px;margin-top:20px;}
+  .card{background:var(--surface);border:1.5px solid var(--border);padding:16px;}
+  .card-title{font-size:0.55rem;letter-spacing:2px;color:#a8a29e;margin-bottom:12px;}
+  .waterfall-row{display:flex;align-items:center;gap:8px;margin-bottom:4px;}
+  .wf-label{font-size:0.6rem;width:110px;text-align:right;color:#78716c;}
+  .wf-bar-wrap{display:flex;align-items:center;flex:1;gap:4px;}
+  .wf-val{font-size:0.6rem;width:50px;color:#555;}
+</style>
+</head>
+<body>
+<div class="hdr">
+  <div class="brand">SHAP <em>EXPLAINER</em></div>
+  <div class="sub">ETHAR.AI / MODEL INTERPRETABILITY / XAI</div>
+</div>
+<div class="tabs">
+  <div class="tab active">FORCE PLOT</div>
+  <div class="tab">SUMMARY PLOT</div>
+  <div class="tab">WATERFALL</div>
+  <div class="tab">DEPENDENCE</div>
+</div>
+<div class="layout">
+  <!-- Sidebar -->
+  <div class="sidebar">
+    <div class="sb-title">SELECT INSTANCE</div>
+    <div class="instance-card active" onclick="selectInstance(0,this)">
+      <div class="ic-id">CUST #4821</div>
+      <div class="ic-pred">Churn Prediction</div>
+      <div class="ic-prob" style="color:var(--pos)">87.3% CHURN</div>
+    </div>
+    <div class="instance-card" onclick="selectInstance(1,this)">
+      <div class="ic-id">CUST #2047</div>
+      <div class="ic-pred">Churn Prediction</div>
+      <div class="ic-prob" style="color:var(--neg)">12.1% CHURN</div>
+    </div>
+    <div class="instance-card" onclick="selectInstance(2,this)">
+      <div class="ic-id">CUST #9103</div>
+      <div class="ic-pred">Churn Prediction</div>
+      <div class="ic-prob" style="color:var(--pos)">64.5% CHURN</div>
+    </div>
+    <div class="instance-card" onclick="selectInstance(3,this)">
+      <div class="ic-id">CUST #3388</div>
+      <div class="ic-pred">Churn Prediction</div>
+      <div class="ic-prob" style="color:var(--neg)">8.4% CHURN</div>
+    </div>
+    <div class="instance-card" onclick="selectInstance(4,this)">
+      <div class="ic-id">CUST #7712</div>
+      <div class="ic-pred">Churn Prediction</div>
+      <div class="ic-prob" style="color:var(--pos)">72.8% CHURN</div>
+    </div>
+    <div style="margin-top:20px;border-top:1px solid var(--border);padding-top:14px;">
+      <div class="sb-title">MODEL INFO</div>
+      <div style="font-size:0.6rem;line-height:2;color:#78716c;">
+        Model: XGBoost v4<br>
+        Base Value: 0.421<br>
+        Features: 18<br>
+        Background: 1000 samples<br>
+        Explainer: TreeExplainer
+      </div>
+    </div>
+  </div>
+  <!-- Main -->
+  <div class="main">
+    <div class="section-title">FORCE PLOT — INSTANCE EXPLANATION</div>
+    <canvas id="forceC" height="110"></canvas>
+    <div class="grid2">
+      <div>
+        <div class="section-title" style="margin-top:0">SHAP VALUES — FEATURE CONTRIBUTIONS</div>
+        <table class="feature-table" id="shapTable"></table>
+      </div>
+      <div>
+        <div class="section-title" style="margin-top:0">GLOBAL FEATURE IMPORTANCE</div>
+        <canvas id="globalC" height="280"></canvas>
+        <div class="card" style="margin-top:14px">
+          <div class="card-title">VERDICT</div>
+          <div style="font-size:0.75rem;line-height:2;" id="verdictText">—</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+<script>
+const INSTANCES=[
+  {id:'CUST #4821',prob:0.873,cls:'CHURN',
+   features:[
+     {name:'num_support_calls',val:8,shap:0.31},
+     {name:'days_since_login',val:42,shap:0.24},
+     {name:'contract_type',val:'Monthly',shap:0.19},
+     {name:'monthly_charges',val:89.5,shap:0.12},
+     {name:'tenure_months',val:3,shap:0.09},
+     {name:'num_products',val:1,shap:0.07},
+     {name:'payment_method',val:'Card',shap:-0.05},
+     {name:'internet_service',val:'DSL',shap:-0.08},
+     {name:'tech_support',val:'No',shap:0.11},
+     {name:'avg_session_len',val:4.2,shap:-0.03},
+   ]},
+  {id:'CUST #2047',prob:0.121,cls:'RETAIN',
+   features:[
+     {name:'num_support_calls',val:0,shap:-0.28},
+     {name:'days_since_login',val:2,shap:-0.22},
+     {name:'contract_type',val:'2-Year',shap:-0.18},
+     {name:'monthly_charges',val:45.0,shap:-0.10},
+     {name:'tenure_months',val:48,shap:-0.15},
+     {name:'num_products',val:4,shap:-0.09},
+     {name:'payment_method',val:'AutoPay',shap:-0.06},
+     {name:'internet_service',val:'Fiber',shap:0.04},
+     {name:'tech_support',val:'Yes',shap:-0.07},
+     {name:'avg_session_len',val:32.1,shap:-0.12},
+   ]},
+  {id:'CUST #9103',prob:0.645,cls:'CHURN',
+   features:[
+     {name:'num_support_calls',val:4,shap:0.18},
+     {name:'days_since_login',val:18,shap:0.14},
+     {name:'contract_type',val:'Monthly',shap:0.17},
+     {name:'monthly_charges',val:72.0,shap:0.09},
+     {name:'tenure_months',val:9,shap:0.06},
+     {name:'num_products',val:2,shap:-0.04},
+     {name:'payment_method',val:'Card',shap:-0.03},
+     {name:'internet_service',val:'Fiber',shap:-0.06},
+     {name:'tech_support',val:'No',shap:0.08},
+     {name:'avg_session_len',val:11.4,shap:-0.02},
+   ]},
+  {id:'CUST #3388',prob:0.084,cls:'RETAIN',
+   features:[
+     {name:'num_support_calls',val:0,shap:-0.30},
+     {name:'days_since_login',val:1,shap:-0.25},
+     {name:'contract_type',val:'2-Year',shap:-0.21},
+     {name:'monthly_charges',val:38.0,shap:-0.12},
+     {name:'tenure_months',val:72,shap:-0.18},
+     {name:'num_products',val:5,shap:-0.11},
+     {name:'payment_method',val:'AutoPay',shap:-0.08},
+     {name:'internet_service',val:'Fiber',shap:0.02},
+     {name:'tech_support',val:'Yes',shap:-0.09},
+     {name:'avg_session_len',val:45.0,shap:-0.14},
+   ]},
+  {id:'CUST #7712',prob:0.728,cls:'CHURN',
+   features:[
+     {name:'num_support_calls',val:6,shap:0.25},
+     {name:'days_since_login',val:30,shap:0.20},
+     {name:'contract_type',val:'Monthly',shap:0.18},
+     {name:'monthly_charges',val:95.0,shap:0.14},
+     {name:'tenure_months',val:5,shap:0.07},
+     {name:'num_products',val:1,shap:0.06},
+     {name:'payment_method',val:'Card',shap:-0.04},
+     {name:'internet_service',val:'DSL',shap:-0.05},
+     {name:'tech_support',val:'No',shap:0.10},
+     {name:'avg_session_len',val:7.2,shap:-0.02},
+   ]},
+];
+let selectedIdx=0;
+
+function selectInstance(idx,el){
+  selectedIdx=idx;
+  document.querySelectorAll('.instance-card').forEach((c,i)=>c.classList.toggle('active',i===idx));
+  render();
+}
+
+function render(){
+  const inst=INSTANCES[selectedIdx];
+  drawForce(inst);
+  drawTable(inst);
+  drawGlobal();
+  drawVerdict(inst);
+}
+
+function drawForce(inst){
+  const c=document.getElementById('forceC');
+  const W=c.parentElement.clientWidth-48; c.width=W; c.height=110;
+  const ctx=c.getContext('2d'); ctx.clearRect(0,0,W,110);
+  const baseVal=0.421;
+  const pos=inst.features.filter(f=>f.shap>0);
+  const neg=inst.features.filter(f=>f.shap<0);
+  const totalPos=pos.reduce((s,f)=>s+f.shap,0);
+  const totalNeg=Math.abs(neg.reduce((s,f)=>s+f.shap,0));
+  const total=totalPos+totalNeg+baseVal;
+  const pad=60;
+  const barY=40,barH=30;
+  // Base value marker
+  const baseX=pad+baseVal/total*(W-pad*2);
+  // Draw pos bars
+  let xCursor=baseX;
+  pos.forEach(f=>{
+    const w=f.shap/total*(W-pad*2);
+    ctx.fillStyle='#dc2626cc'; ctx.fillRect(xCursor,barY,w,barH);
+    ctx.font='8px Source Code Pro'; ctx.fillStyle='#fff'; ctx.textAlign='center';
+    if(w>30)ctx.fillText(f.name.slice(0,8),xCursor+w/2,barY+barH/2+3);
+    xCursor+=w;
+  });
+  // Draw neg bars
+  xCursor=baseX;
+  neg.forEach(f=>{
+    const w=Math.abs(f.shap)/total*(W-pad*2);
+    xCursor-=w;
+    ctx.fillStyle='#2563ebcc'; ctx.fillRect(xCursor,barY,w,barH);
+    ctx.font='8px Source Code Pro'; ctx.fillStyle='#fff'; ctx.textAlign='center';
+    if(w>30)ctx.fillText(f.name.slice(0,8),xCursor+w/2,barY+barH/2+3);
+  });
+  // Prediction arrow
+  const predX=pad+inst.prob*(W-pad*2);
+  ctx.fillStyle=inst.cls==='CHURN'?'#dc2626':'#2563eb'; ctx.textAlign='center'; ctx.font='bold 11px Source Code Pro';
+  ctx.fillText(`f(x) = ${inst.prob.toFixed(3)}`,predX,28);
+  ctx.beginPath(); ctx.moveTo(predX-6,32); ctx.lineTo(predX+6,32); ctx.lineTo(predX,barY); ctx.fill();
+  // Axis
+  ctx.strokeStyle='#e7e5e4'; ctx.lineWidth=1;
+  ctx.beginPath(); ctx.moveTo(pad,barY+barH+4); ctx.lineTo(W-pad,barY+barH+4); ctx.stroke();
+  ctx.font='8px Source Code Pro'; ctx.fillStyle='#a8a29e'; ctx.textAlign='center';
+  ctx.fillText('E[f(x)] = '+baseVal,baseX,barY+barH+16);
+  ctx.fillStyle='#dc2626'; ctx.textAlign='right';
+  ctx.fillText('→ PUSHES TOWARD CHURN',W-pad,barY+barH+28);
+  ctx.fillStyle='#2563eb'; ctx.textAlign='left';
+  ctx.fillText('← PUSHES TOWARD RETAIN',pad,barY+barH+28);
+}
+
+function drawTable(inst){
+  const tb=document.getElementById('shapTable');
+  const sorted=[...inst.features].sort((a,b)=>Math.abs(b.shap)-Math.abs(a.shap));
+  tb.innerHTML=`<thead><tr><th>FEATURE</th><th>VALUE</th><th>SHAP</th><th>DIRECTION</th></tr></thead>`;
+  const tbody=document.createElement('tbody');
+  sorted.forEach(f=>{
+    const tr=document.createElement('tr');
+    const maxShap=0.35;
+    const bw=Math.round(Math.abs(f.shap)/maxShap*80);
+    tr.innerHTML=`
+      <td>${f.name}</td>
+      <td>${f.val}</td>
+      <td style="color:${f.shap>0?'#dc2626':'#2563eb'}">${f.shap>0?'+':''}${f.shap.toFixed(3)}</td>
+      <td><div class="shap-bar ${f.shap>0?'shap-pos':'shap-neg'}" style="width:${bw}px"></div></td>`;
+    tbody.appendChild(tr);
+  });
+  tb.appendChild(tbody);
+}
+
+function drawGlobal(){
+  const c=document.getElementById('globalC');
+  c.width=c.parentElement.clientWidth-32; c.height=280;
+  const ctx=c.getContext('2d'); ctx.clearRect(0,0,c.width,280);
+  const features=[
+    {name:'num_support_calls',imp:0.31},
+    {name:'days_since_login',imp:0.28},
+    {name:'contract_type',imp:0.24},
+    {name:'tenure_months',imp:0.20},
+    {name:'monthly_charges',imp:0.18},
+    {name:'avg_session_len',imp:0.15},
+    {name:'num_products',imp:0.13},
+    {name:'tech_support',imp:0.11},
+    {name:'internet_service',imp:0.08},
+    {name:'payment_method',imp:0.06},
+  ];
+  const maxI=0.35; const bH=20; const gap=7; const pad=110;
+  features.forEach((f,i)=>{
+    const y=i*(bH+gap);
+    ctx.font='9px Source Code Pro'; ctx.fillStyle='#78716c'; ctx.textAlign='right';
+    ctx.fillText(f.name,pad-6,y+bH/2+3);
+    const w=f.imp/maxI*(c.width-pad-20);
+    const hue=220-i*15;
+    ctx.fillStyle=`hsl(${hue},70%,55%)`; ctx.fillRect(pad,y,w,bH);
+    ctx.font='8px Source Code Pro'; ctx.fillStyle='#555'; ctx.textAlign='left';
+    ctx.fillText(f.imp.toFixed(3),pad+w+4,y+bH/2+3);
+  });
+}
+
+function drawVerdict(inst){
+  const isChurn=inst.cls==='CHURN';
+  const topFeature=inst.features.reduce((a,b)=>Math.abs(b.shap)>Math.abs(a.shap)?b:a);
+  document.getElementById('verdictText').innerHTML=`
+    Prediction: <strong style="color:${isChurn?'#dc2626':'#2563eb'}">${inst.cls}</strong> (${(inst.prob*100).toFixed(1)}%)<br>
+    Key driver: <strong>${topFeature.name}</strong> (SHAP: ${topFeature.shap>0?'+':''}${topFeature.shap.toFixed(3)})<br>
+    Confidence: <strong>${inst.prob>0.8||inst.prob<0.2?'HIGH':'MEDIUM'}</strong>
+  `;
+}
+
+render();
+</script>
+</body>
+</html>

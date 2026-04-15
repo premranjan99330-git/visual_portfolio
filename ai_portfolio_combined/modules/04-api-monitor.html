@@ -1,0 +1,366 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AI API Monitor — Ethar AI</title>
+<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@400;600;800&family=Fira+Code:wght@400;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg:#F8F5EE;
+    --ink:#1A1A1A;
+    --red:#D92B2B;
+    --green:#1A8A47;
+    --orange:#E07000;
+    --blue:#004ECB;
+    --yellow:#E6C200;
+    --surface:#EFECE4;
+    --border:#D0CCB8;
+    --stripe:#E8E4D8;
+    --font-h:'Barlow Condensed',sans-serif;
+    --font-m:'Fira Code',monospace;
+  }
+  *{margin:0;padding:0;box-sizing:border-box;}
+  body {
+    background:var(--bg);
+    color:var(--ink);
+    font-family:var(--font-m);
+    font-size:13px;
+    min-height:100vh;
+  }
+
+  .top-bar {
+    background:var(--ink);
+    color:var(--bg);
+    display:flex; align-items:center; justify-content:space-between;
+    padding:12px 40px;
+  }
+  .top-bar-title {
+    font-family:var(--font-h); font-size:22px; font-weight:800; letter-spacing:3px;
+    text-transform:uppercase;
+  }
+  .top-bar-title span { color:var(--yellow); }
+  .top-bar-right { display:flex; gap:24px; align-items:center; }
+  .tb-pill {
+    padding:4px 14px; font-size:10px; letter-spacing:2px; text-transform:uppercase;
+    font-family:var(--font-h); font-weight:600;
+  }
+  .pill-green { background:var(--green); }
+  .pill-red { background:var(--red); }
+  .tb-clock { font-size:12px; opacity:.7; }
+
+  /* KPI row */
+  .kpi-row {
+    display:grid; grid-template-columns: repeat(5,1fr);
+    border-bottom:2px solid var(--ink);
+  }
+  .kpi {
+    padding:24px 32px;
+    border-right:1px solid var(--border);
+    position:relative;
+  }
+  .kpi:last-child { border-right:none; }
+  .kpi-label { font-size:9px; letter-spacing:3px; text-transform:uppercase; color:#888; margin-bottom:8px; }
+  .kpi-val {
+    font-family:var(--font-h); font-size:40px; font-weight:800; line-height:1;
+  }
+  .kpi-val.ok { color:var(--green); }
+  .kpi-val.warn { color:var(--orange); }
+  .kpi-val.crit { color:var(--red); }
+  .kpi-trend { font-size:10px; color:#888; margin-top:4px; }
+
+  /* Main layout */
+  .main { display:grid; grid-template-columns:2fr 1fr; border-bottom:2px solid var(--ink); }
+  .left { border-right:2px solid var(--ink); }
+  .right {}
+
+  .section-head {
+    padding:16px 32px;
+    border-bottom:1px solid var(--border);
+    display:flex; justify-content:space-between; align-items:center;
+  }
+  .sh-label { font-family:var(--font-h); font-size:13px; font-weight:600; letter-spacing:2px; text-transform:uppercase; }
+  .sh-tag { font-size:10px; letter-spacing:1px; padding:3px 10px; border:1px solid var(--border); }
+
+  /* Request timeline */
+  .timeline-wrap { padding:32px; }
+  .tl-chart { position:relative; height:200px; }
+  canvas#timelineCanvas { position:absolute; top:0; left:0; }
+
+  /* Endpoint table */
+  .ep-table { width:100%; border-collapse:collapse; }
+  .ep-table th, .ep-table td { padding:12px 32px; border-bottom:1px solid var(--border); text-align:left; }
+  .ep-table thead th {
+    background:var(--stripe); font-family:var(--font-h);
+    font-size:10px; letter-spacing:3px; text-transform:uppercase; color:#888;
+  }
+  .ep-table tbody tr:hover { background:var(--stripe); }
+  .ep-name { font-weight:600; color:var(--blue); }
+  .method-badge {
+    padding:2px 8px; font-size:9px; letter-spacing:1px; font-weight:600;
+    display:inline-block; font-family:var(--font-h);
+  }
+  .method-post { background:var(--blue); color:#fff; }
+  .method-get { background:var(--green); color:#fff; }
+  .status-ok { color:var(--green); font-weight:600; }
+  .status-err { color:var(--red); font-weight:600; }
+  .latency-bar {
+    display:flex; align-items:center; gap:8px;
+  }
+  .lat-track { width:60px; height:6px; background:var(--border); }
+  .lat-fill { height:100%; }
+
+  /* Error log */
+  .error-log { padding:20px 32px; display:flex; flex-direction:column; gap:8px; }
+  .el-row {
+    padding:10px 14px;
+    border-left:3px solid;
+    background:var(--stripe);
+    font-size:11px; line-height:1.5;
+  }
+  .el-row.err { border-color:var(--red); }
+  .el-row.warn { border-color:var(--orange); }
+  .el-row.ok { border-color:var(--green); }
+  .el-time { opacity:.5; margin-right:8px; }
+  .el-code { font-weight:600; margin-right:8px; }
+
+  /* Geo distribution */
+  .geo-bars { padding:20px 32px; display:flex; flex-direction:column; gap:10px; }
+  .geo-row { display:flex; align-items:center; gap:10px; }
+  .geo-flag { font-size:18px; }
+  .geo-name { font-size:11px; width:60px; }
+  .geo-track { flex:1; height:12px; background:var(--border); }
+  .geo-fill { height:100%; background:var(--ink); transition:width 1s ease; }
+  .geo-pct { font-size:11px; width:36px; text-align:right; font-weight:600; }
+
+  footer {
+    background:var(--ink); color:var(--bg);
+    padding:12px 40px;
+    display:flex; justify-content:space-between;
+    font-size:10px; letter-spacing:2px; opacity:.7;
+  }
+</style>
+</head>
+<body>
+
+<div class="top-bar">
+  <div class="top-bar-title">ETHAR <span>AI</span> · API MONITOR</div>
+  <div class="top-bar-right">
+    <span class="tb-pill pill-green">ALL SYSTEMS GO</span>
+    <span class="tb-clock" id="clockEl">--:--:-- UTC</span>
+  </div>
+</div>
+
+<div class="kpi-row">
+  <div class="kpi">
+    <div class="kpi-label">Requests / min</div>
+    <div class="kpi-val ok" id="rpm">2,847</div>
+    <div class="kpi-trend">↑ 14% vs avg</div>
+  </div>
+  <div class="kpi">
+    <div class="kpi-label">P99 Latency</div>
+    <div class="kpi-val warn" id="p99">341ms</div>
+    <div class="kpi-trend">↑ 22ms vs avg</div>
+  </div>
+  <div class="kpi">
+    <div class="kpi-label">Error Rate</div>
+    <div class="kpi-val ok">0.08%</div>
+    <div class="kpi-trend">↓ from 0.12%</div>
+  </div>
+  <div class="kpi">
+    <div class="kpi-label">Uptime (30d)</div>
+    <div class="kpi-val ok">99.97%</div>
+    <div class="kpi-trend">SLA: 99.9%</div>
+  </div>
+  <div class="kpi">
+    <div class="kpi-label">Active Connections</div>
+    <div class="kpi-val" id="connVal">14,203</div>
+    <div class="kpi-trend">Peak: 18,400</div>
+  </div>
+</div>
+
+<div class="main">
+  <div class="left">
+    <div class="section-head">
+      <div class="sh-label">Request Volume · Last 60 min</div>
+      <div class="sh-tag">AUTO-REFRESH 5s</div>
+    </div>
+    <div class="timeline-wrap">
+      <div class="tl-chart" id="tlWrap">
+        <canvas id="timelineCanvas" width="800" height="200"></canvas>
+      </div>
+    </div>
+    <div class="section-head" style="margin-top:8px">
+      <div class="sh-label">Endpoint Performance</div>
+    </div>
+    <table class="ep-table">
+      <thead>
+        <tr>
+          <th>Endpoint</th><th>Method</th><th>Calls/min</th><th>Avg Latency</th><th>Status</th>
+        </tr>
+      </thead>
+      <tbody id="epBody"></tbody>
+    </table>
+  </div>
+
+  <div class="right">
+    <div class="section-head">
+      <div class="sh-label">Recent Errors</div>
+      <div class="sh-tag" style="color:var(--red)">3 ACTIVE</div>
+    </div>
+    <div class="error-log" id="errorLog"></div>
+
+    <div class="section-head">
+      <div class="sh-label">Traffic by Region</div>
+    </div>
+    <div class="geo-bars" id="geoBars"></div>
+  </div>
+</div>
+
+<footer>
+  <span>Ethar AI · API Monitor v3.2</span>
+  <span>Prometheus · Grafana · Datadog Stack</span>
+</footer>
+
+<script>
+// Clock
+function updateClock(){
+  const now=new Date();
+  document.getElementById('clockEl').textContent=now.toISOString().split('T')[1].split('.')[0]+' UTC';
+}
+setInterval(updateClock,1000); updateClock();
+
+// Timeline chart
+const canvas=document.getElementById('timelineCanvas');
+const wrap=document.getElementById('tlWrap');
+const ctx=canvas.getContext('2d');
+let reqData=[];
+for(let i=0;i<60;i++){
+  reqData.push(2000+Math.random()*1200+Math.sin(i/8)*400);
+}
+function drawTimeline(){
+  const W=wrap.offsetWidth, H=200;
+  canvas.width=W*devicePixelRatio; canvas.height=H*devicePixelRatio;
+  canvas.style.width=W+'px'; canvas.style.height=H+'px';
+  ctx.scale(devicePixelRatio,devicePixelRatio);
+  ctx.clearRect(0,0,W,H);
+  const pad={t:16,b:28,l:48,r:16};
+  const cw=W-pad.l-pad.r, ch=H-pad.t-pad.b;
+  const minV=0, maxV=3600;
+
+  // grid
+  ctx.strokeStyle='#D0CCB8'; ctx.lineWidth=1;
+  for(let i=0;i<=4;i++){
+    const y=pad.t+ch*(i/4);
+    ctx.beginPath(); ctx.moveTo(pad.l,y); ctx.lineTo(pad.l+cw,y); ctx.stroke();
+    ctx.fillStyle='#888'; ctx.font='10px Fira Code'; ctx.textAlign='right';
+    ctx.fillText(Math.round(maxV*(1-i/4)),pad.l-6,y+4);
+  }
+
+  // fill area
+  ctx.beginPath();
+  reqData.forEach((v,i)=>{
+    const x=pad.l+cw*(i/(reqData.length-1));
+    const y=pad.t+ch*(1-(v-minV)/(maxV-minV));
+    i===0?ctx.moveTo(x,y):ctx.lineTo(x,y);
+  });
+  ctx.lineTo(pad.l+cw, pad.t+ch); ctx.lineTo(pad.l,pad.t+ch); ctx.closePath();
+  const grad=ctx.createLinearGradient(0,pad.t,0,pad.t+ch);
+  grad.addColorStop(0,'rgba(26,26,26,0.2)'); grad.addColorStop(1,'rgba(26,26,26,0)');
+  ctx.fillStyle=grad; ctx.fill();
+
+  // line
+  ctx.beginPath(); ctx.strokeStyle='#1A1A1A'; ctx.lineWidth=2.5; ctx.lineJoin='round';
+  reqData.forEach((v,i)=>{
+    const x=pad.l+cw*(i/(reqData.length-1));
+    const y=pad.t+ch*(1-(v-minV)/(maxV-minV));
+    i===0?ctx.moveTo(x,y):ctx.lineTo(x,y);
+  });
+  ctx.stroke();
+
+  // x labels
+  ctx.fillStyle='#888'; ctx.textAlign='center';
+  for(let i=0;i<=6;i++){
+    const xi=Math.round(i*(reqData.length-1)/6);
+    const x=pad.l+cw*(xi/(reqData.length-1));
+    ctx.fillText('-'+(60-xi)+'m',x,H-6);
+  }
+}
+drawTimeline();
+setInterval(()=>{
+  reqData.shift(); reqData.push(2000+Math.random()*1200+Math.sin(Date.now()/8000)*400);
+  drawTimeline();
+  document.getElementById('rpm').textContent=Math.round(reqData[reqData.length-1]).toLocaleString();
+},5000);
+
+// Endpoints
+const endpoints=[
+  {name:'/v1/messages',method:'POST',cpm:1240,lat:145,ok:true},
+  {name:'/v1/complete',method:'POST',cpm:892,lat:210,ok:true},
+  {name:'/v1/embeddings',method:'POST',cpm:540,lat:48,ok:true},
+  {name:'/v1/models',method:'GET',cpm:180,lat:12,ok:true},
+  {name:'/v1/files',method:'POST',cpm:34,lat:380,ok:false},
+];
+const eb=document.getElementById('epBody');
+endpoints.forEach(e=>{
+  const maxLat=400;
+  const latColor=e.lat<100?'#1A8A47':e.lat<250?'#E07000':'#D92B2B';
+  const tr=document.createElement('tr');
+  tr.innerHTML=`
+    <td><span class="ep-name">${e.name}</span></td>
+    <td><span class="method-badge ${e.method==='POST'?'method-post':'method-get'}">${e.method}</span></td>
+    <td>${e.cpm.toLocaleString()}</td>
+    <td>
+      <div class="latency-bar">
+        <div class="lat-track"><div class="lat-fill" style="width:${e.lat/maxLat*100}%;background:${latColor}"></div></div>
+        <span>${e.lat}ms</span>
+      </div>
+    </td>
+    <td><span class="${e.ok?'status-ok':'status-err'}">${e.ok?'● 200':'● 500'}</span></td>
+  `;
+  eb.appendChild(tr);
+});
+
+// Error log
+const errors=[
+  {type:'err',code:'503',msg:'/v1/files · Service unavailable · upstream timeout',time:'14:22:08'},
+  {type:'warn',code:'429',msg:'/v1/messages · Rate limit hit · key:usr_4f2b',time:'14:21:55'},
+  {type:'warn',code:'429',msg:'/v1/complete · Rate limit hit · key:usr_a90c',time:'14:21:42'},
+  {type:'ok',code:'200',msg:'Health check passed · all pods ready',time:'14:21:30'},
+  {type:'ok',code:'200',msg:'Autoscale triggered · 12→16 replicas',time:'14:20:11'},
+];
+const elDiv=document.getElementById('errorLog');
+errors.forEach(e=>{
+  const d=document.createElement('div'); d.className='el-row '+e.type;
+  d.innerHTML=`<span class="el-time">${e.time}</span><span class="el-code">${e.code}</span>${e.msg}`;
+  elDiv.appendChild(d);
+});
+
+// Geo
+const geos=[
+  {flag:'🇺🇸',name:'USA',pct:38},{flag:'🇪🇺',name:'EU',pct:24},{flag:'🇮🇳',name:'India',pct:14},
+  {flag:'🇯🇵',name:'Japan',pct:9},{flag:'🇬🇧',name:'UK',pct:7},{flag:'🇸🇬',name:'SG',pct:8},
+];
+const gb=document.getElementById('geoBars');
+geos.forEach(g=>{
+  const row=document.createElement('div'); row.className='geo-row';
+  row.innerHTML=`
+    <span class="geo-flag">${g.flag}</span>
+    <span class="geo-name">${g.name}</span>
+    <div class="geo-track"><div class="geo-fill" data-w="${g.pct}" style="width:0%"></div></div>
+    <span class="geo-pct">${g.pct}%</span>
+  `;
+  gb.appendChild(row);
+});
+setTimeout(()=>{ document.querySelectorAll('.geo-fill').forEach(f=>f.style.width=f.dataset.w+'%'); },300);
+
+// Live flicker
+setInterval(()=>{
+  const c=Math.round(13000+Math.random()*3000);
+  document.getElementById('connVal').textContent=c.toLocaleString();
+  const lat=Math.round(300+Math.random()*80);
+  document.getElementById('p99').textContent=lat+'ms';
+},2200);
+</script>
+</body>
+</html>
