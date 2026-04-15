@@ -1,0 +1,171 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ML Model Comparison Dashboard</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Anton&display=swap');
+  :root { --bg:#f0ece4; --ink:#111; --accent:#e63946; --highlight:#457b9d; --gold:#f4a261; --surface:#fff; }
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body { background:var(--bg); font-family:'DM Mono',monospace; color:var(--ink); min-height:100vh; }
+  .top-bar { background:var(--ink); color:var(--bg); display:flex; justify-content:space-between; align-items:center; padding:14px 40px; }
+  .top-bar .brand { font-family:'Anton',sans-serif; font-size:1.4rem; letter-spacing:3px; }
+  .top-bar .meta { font-size:0.6rem; letter-spacing:2px; color:#888; }
+  .main { display:grid; grid-template-columns:1fr 1fr 1fr; grid-template-rows:auto; gap:20px; padding:30px 40px; }
+  .card { background:var(--surface); border:2px solid var(--ink); padding:24px; position:relative; overflow:hidden; }
+  .card::before { content:''; position:absolute; top:0; left:0; width:6px; height:100%; background:var(--accent); }
+  .card.blue::before { background:var(--highlight); }
+  .card.gold::before { background:var(--gold); }
+  .card-title { font-size:0.6rem; letter-spacing:3px; color:#888; margin-bottom:8px; padding-left:12px; }
+  .card-val { font-family:'Anton',sans-serif; font-size:3rem; color:var(--ink); padding-left:12px; }
+  .card-sub { font-size:0.6rem; color:#aaa; padding-left:12px; margin-top:4px; }
+  .wide { grid-column: span 2; }
+  .tall { grid-row: span 2; }
+  h2 { font-family:'Anton',sans-serif; font-size:1rem; letter-spacing:3px; margin-bottom:16px; padding-left:12px; }
+  .bar-group { display:flex; flex-direction:column; gap:10px; padding-left:12px; }
+  .bar-row { display:flex; align-items:center; gap:10px; }
+  .bar-label { font-size:0.6rem; width:80px; color:#555; letter-spacing:1px; }
+  .bar-track { flex:1; height:20px; background:#eee; border:1px solid #ddd; position:relative; overflow:hidden; }
+  .bar-fill { height:100%; display:flex; align-items:center; justify-content:flex-end; padding-right:6px; font-size:0.55rem; font-weight:500; transition:width 0.8s cubic-bezier(.17,.67,.83,.67); }
+  .bar-fill.r { background:var(--accent); color:#fff; }
+  .bar-fill.b { background:var(--highlight); color:#fff; }
+  .bar-fill.g { background:#2a9d8f; color:#fff; }
+  .bar-fill.y { background:var(--gold); color:#111; }
+  .scatter-wrap { padding-left:12px; }
+  canvas { width:100%; height:220px; }
+  .legend { display:flex; gap:16px; margin-top:12px; flex-wrap:wrap; }
+  .leg { display:flex; align-items:center; gap:6px; font-size:0.55rem; color:#555; }
+  .dot { width:10px; height:10px; border-radius:50%; }
+  .metric-grid { display:grid; grid-template-columns:1fr 1fr; gap:12px; padding-left:12px; }
+  .metric { background:#f9f9f6; border:1px solid #e0dcd0; padding:12px; }
+  .m-label { font-size:0.55rem; color:#888; letter-spacing:2px; }
+  .m-val { font-family:'Anton',sans-serif; font-size:1.6rem; color:var(--ink); }
+  .m-delta { font-size:0.6rem; color:#2a9d8f; }
+  .m-delta.neg { color:var(--accent); }
+  table { width:100%; border-collapse:collapse; padding-left:12px; font-size:0.6rem; }
+  th { background:var(--ink); color:var(--bg); padding:8px 10px; text-align:left; letter-spacing:2px; font-size:0.55rem; }
+  td { padding:8px 10px; border-bottom:1px solid #e0dcd0; }
+  tr:hover td { background:#f5f2ea; }
+  .rank { font-family:'Anton',sans-serif; font-size:1.1rem; }
+  .badge { display:inline-block; padding:2px 8px; font-size:0.5rem; letter-spacing:1px; }
+  .badge.best { background:var(--accent); color:#fff; }
+  .badge.ok { background:var(--gold); color:#111; }
+  .badge.low { background:#e0dcd0; color:#555; }
+</style>
+</head>
+<body>
+<div class="top-bar">
+  <div class="brand">MODEL BENCHMARK DASHBOARD</div>
+  <div class="meta">ETHAR.AI / COMPARATIVE ANALYSIS / 2024</div>
+</div>
+<div class="main">
+  <!-- KPI Cards -->
+  <div class="card">
+    <div class="card-title">BEST ACCURACY</div>
+    <div class="card-val">97.4%</div>
+    <div class="card-sub">XGBoost — Test Set</div>
+  </div>
+  <div class="card blue">
+    <div class="card-title">FASTEST INFERENCE</div>
+    <div class="card-val">1.2ms</div>
+    <div class="card-sub">Logistic Regression</div>
+  </div>
+  <div class="card gold">
+    <div class="card-title">BEST F1-SCORE</div>
+    <div class="card-val">0.961</div>
+    <div class="card-sub">Random Forest</div>
+  </div>
+
+  <!-- Accuracy Bars -->
+  <div class="card wide">
+    <h2>ACCURACY COMPARISON</h2>
+    <div class="bar-group">
+      <div class="bar-row"><span class="bar-label">XGBOOST</span><div class="bar-track"><div class="bar-fill r" style="width:97.4%">97.4%</div></div></div>
+      <div class="bar-row"><span class="bar-label">RANDOM FOREST</span><div class="bar-track"><div class="bar-fill b" style="width:95.1%">95.1%</div></div></div>
+      <div class="bar-row"><span class="bar-label">NEURAL NET</span><div class="bar-track"><div class="bar-fill g" style="width:93.8%">93.8%</div></div></div>
+      <div class="bar-row"><span class="bar-label">SVM</span><div class="bar-track"><div class="bar-fill y" style="width:91.2%">91.2%</div></div></div>
+      <div class="bar-row"><span class="bar-label">LOGISTIC REG</span><div class="bar-track"><div class="bar-fill r" style="width:87.5%;background:#ccc;color:#555">87.5%</div></div></div>
+      <div class="bar-row"><span class="bar-label">NAIVE BAYES</span><div class="bar-track"><div class="bar-fill r" style="width:82.3%;background:#ccc;color:#555">82.3%</div></div></div>
+    </div>
+  </div>
+
+  <!-- Scatter: Accuracy vs Speed -->
+  <div class="card tall">
+    <h2>ACCURACY vs SPEED</h2>
+    <div class="scatter-wrap">
+      <canvas id="sc" height="220"></canvas>
+      <div class="legend">
+        <div class="leg"><div class="dot" style="background:#e63946"></div>XGBoost</div>
+        <div class="leg"><div class="dot" style="background:#457b9d"></div>Random Forest</div>
+        <div class="leg"><div class="dot" style="background:#2a9d8f"></div>Neural Net</div>
+        <div class="leg"><div class="dot" style="background:#f4a261"></div>SVM</div>
+        <div class="leg"><div class="dot" style="background:#6a4c93"></div>LogReg</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Metrics Grid -->
+  <div class="card">
+    <h2>KEY METRICS</h2>
+    <div class="metric-grid">
+      <div class="metric"><div class="m-label">PRECISION</div><div class="m-val">96.8%</div><div class="m-delta">↑ 2.1%</div></div>
+      <div class="metric"><div class="m-label">RECALL</div><div class="m-val">97.1%</div><div class="m-delta">↑ 1.8%</div></div>
+      <div class="metric"><div class="m-label">AUC-ROC</div><div class="m-val">0.989</div><div class="m-delta">↑ 0.03</div></div>
+      <div class="metric"><div class="m-label">LOG LOSS</div><div class="m-val">0.041</div><div class="m-delta neg">↓ better</div></div>
+    </div>
+  </div>
+
+  <!-- Table -->
+  <div class="card wide">
+    <h2>FULL MODEL LEADERBOARD</h2>
+    <table>
+      <tr><th>#</th><th>MODEL</th><th>ACCURACY</th><th>F1</th><th>AUC</th><th>TRAIN TIME</th><th>STATUS</th></tr>
+      <tr><td><span class="rank">1</span></td><td>XGBoost</td><td>97.4%</td><td>0.961</td><td>0.989</td><td>4.2s</td><td><span class="badge best">BEST</span></td></tr>
+      <tr><td><span class="rank">2</span></td><td>Random Forest</td><td>95.1%</td><td>0.948</td><td>0.981</td><td>3.8s</td><td><span class="badge ok">GOOD</span></td></tr>
+      <tr><td><span class="rank">3</span></td><td>Neural Net</td><td>93.8%</td><td>0.932</td><td>0.976</td><td>18.6s</td><td><span class="badge ok">GOOD</span></td></tr>
+      <tr><td><span class="rank">4</span></td><td>SVM</td><td>91.2%</td><td>0.905</td><td>0.962</td><td>6.1s</td><td><span class="badge low">AVG</span></td></tr>
+      <tr><td><span class="rank">5</span></td><td>Logistic Reg</td><td>87.5%</td><td>0.871</td><td>0.944</td><td>0.4s</td><td><span class="badge low">AVG</span></td></tr>
+    </table>
+  </div>
+</div>
+<script>
+const c = document.getElementById('sc');
+const ctx = c.getContext('2d');
+c.width = c.parentElement.clientWidth - 12;
+c.height = 220;
+const models = [
+  {name:'XGBoost', acc:97.4, speed:4.2, col:'#e63946', r:14},
+  {name:'RndForest', acc:95.1, speed:3.8, col:'#457b9d', r:12},
+  {name:'NeuralNet', acc:93.8, speed:18.6, col:'#2a9d8f', r:10},
+  {name:'SVM', acc:91.2, speed:6.1, col:'#f4a261', r:9},
+  {name:'LogReg', acc:87.5, speed:0.4, col:'#6a4c93', r:8}
+];
+const pad=40, W=c.width, H=220;
+const maxAcc=100, minAcc=80, maxSpd=22;
+ctx.strokeStyle='#eee'; ctx.lineWidth=1;
+for(let i=0;i<=4;i++){
+  const y=pad+(H-pad*2)*i/4;
+  ctx.beginPath(); ctx.moveTo(pad,y); ctx.lineTo(W-pad,y); ctx.stroke();
+  ctx.font='8px DM Mono'; ctx.fillStyle='#aaa'; ctx.textAlign='right';
+  ctx.fillText((100-(i*5))+'%', pad-4, y+3);
+}
+ctx.font='8px DM Mono'; ctx.fillStyle='#aaa'; ctx.textAlign='center';
+for(let i=0;i<=4;i++){
+  const x=pad+(W-pad*2)*i/4;
+  ctx.fillText((maxSpd*i/4).toFixed(0)+'s', x, H-pad+14);
+}
+models.forEach(m=>{
+  const x=pad+(m.speed/maxSpd)*(W-pad*2);
+  const y=pad+((maxAcc-m.acc)/(maxAcc-minAcc))*(H-pad*2);
+  ctx.beginPath(); ctx.arc(x,y,m.r,0,Math.PI*2);
+  ctx.fillStyle=m.col+'cc'; ctx.fill();
+  ctx.strokeStyle=m.col; ctx.lineWidth=2; ctx.stroke();
+  ctx.font='bold 8px DM Mono'; ctx.fillStyle='#222'; ctx.textAlign='center';
+  ctx.fillText(m.name,x,y-m.r-4);
+});
+ctx.font='8px DM Mono'; ctx.fillStyle='#aaa'; ctx.textAlign='center';
+ctx.fillText('INFERENCE TIME (s)', W/2, H-pad+26);
+</script>
+</body>
+</html>

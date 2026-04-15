@@ -1,0 +1,184 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Time Series Forecasting</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Oswald:wght@600;700&display=swap');
+  :root{--bg:#0e1117;--s:#161b22;--border:#21262d;--blue:#58a6ff;--orange:#f0883e;--green:#3fb950;--red:#f85149;--text:#c9d1d9;}
+  *{margin:0;padding:0;box-sizing:border-box;}
+  body{background:var(--bg);color:var(--text);font-family:'Share Tech Mono',monospace;}
+  .hdr{padding:16px 32px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center;}
+  .brand{font-family:'Oswald',sans-serif;font-size:1.4rem;font-weight:700;letter-spacing:3px;}
+  .brand em{color:var(--orange);font-style:normal;}
+  .controls{display:flex;gap:10px;align-items:center;}
+  .ctrl-btn{background:var(--s);border:1px solid var(--border);color:var(--text);font-family:'Share Tech Mono',monospace;font-size:0.6rem;padding:5px 12px;cursor:pointer;}
+  .ctrl-btn:hover,.ctrl-btn.active{border-color:var(--blue);color:var(--blue);}
+  select{background:var(--s);border:1px solid var(--border);color:var(--text);font-family:'Share Tech Mono',monospace;font-size:0.6rem;padding:5px 10px;}
+  .top-metrics{display:grid;grid-template-columns:repeat(6,1fr);border-bottom:1px solid var(--border);}
+  .tm{padding:14px 16px;border-right:1px solid var(--border);}
+  .tm:last-child{border-right:none;}
+  .tm-lbl{font-size:0.5rem;color:#484f58;letter-spacing:2px;margin-bottom:4px;}
+  .tm-val{font-family:'Oswald',sans-serif;font-size:1.5rem;font-weight:600;}
+  .tm-d{font-size:0.55rem;margin-top:2px;}
+  .main-area{padding:20px 32px;}
+  .chart-hdr{display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;}
+  .chart-title{font-family:'Oswald',sans-serif;font-size:1rem;font-weight:600;letter-spacing:2px;}
+  .legend{display:flex;gap:16px;}
+  .leg{display:flex;align-items:center;gap:6px;font-size:0.6rem;}
+  .leg-line{width:20px;height:2px;}
+  canvas{display:block;width:100%;}
+  .bottom-grid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:16px;margin-top:16px;}
+  .card{background:var(--s);border:1px solid var(--border);padding:16px;}
+  .card-title{font-size:0.55rem;letter-spacing:2px;color:#484f58;margin-bottom:12px;}
+  .decomp-row{display:flex;flex-direction:column;gap:3px;margin-bottom:8px;}
+  .decomp-lbl{font-size:0.5rem;color:#484f58;}
+  .decomp-bar{height:6px;border-radius:0;}
+  .model-row{display:flex;justify-content:space-between;align-items:center;padding:5px 0;border-bottom:1px solid var(--border);font-size:0.6rem;}
+  .model-row:last-child{border-bottom:none;}
+  .model-name{color:var(--text);}
+  .model-score{font-family:'Oswald',sans-serif;font-size:1rem;}
+</style>
+</head>
+<body>
+<div class="hdr">
+  <div class="brand">TIME<em>CAST</em> — FORECASTING ENGINE</div>
+  <div class="controls">
+    <select><option>Daily</option><option>Weekly</option><option>Monthly</option></select>
+    <button class="ctrl-btn active">30D</button>
+    <button class="ctrl-btn">90D</button>
+    <button class="ctrl-btn">1Y</button>
+    <select><option>PROPHET</option><option>ARIMA</option><option>LSTM</option><option>ENSEMBLE</option></select>
+    <span style="font-size:0.55rem;color:#484f58">ETHAR.AI</span>
+  </div>
+</div>
+<div class="top-metrics">
+  <div class="tm"><div class="tm-lbl">CURRENT VALUE</div><div class="tm-val" style="color:var(--blue)">4,821</div><div class="tm-d" style="color:var(--green)">↑ 3.2% MoM</div></div>
+  <div class="tm"><div class="tm-lbl">30D FORECAST</div><div class="tm-val" style="color:var(--orange)">5,104</div><div class="tm-d" style="color:var(--green)">↑ 5.9%</div></div>
+  <div class="tm"><div class="tm-lbl">MAPE</div><div class="tm-val" style="color:var(--green)">2.4%</div><div class="tm-d" style="color:var(--green)">EXCELLENT</div></div>
+  <div class="tm"><div class="tm-lbl">RMSE</div><div class="tm-val">84.3</div><div class="tm-d" style="color:#484f58">↓ -12 vs ARIMA</div></div>
+  <div class="tm"><div class="tm-lbl">TREND</div><div class="tm-val" style="color:var(--green)">↗ UP</div><div class="tm-d" style="color:#484f58">+0.8%/day</div></div>
+  <div class="tm"><div class="tm-lbl">SEASONALITY</div><div class="tm-val">WEEKLY</div><div class="tm-d" style="color:#484f58">STRONG</div></div>
+</div>
+<div class="main-area">
+  <div class="chart-hdr">
+    <div class="chart-title">ACTUAL vs FORECAST</div>
+    <div class="legend">
+      <div class="leg"><div class="leg-line" style="background:var(--blue)"></div>Actual</div>
+      <div class="leg"><div class="leg-line" style="background:var(--orange)"></div>Forecast</div>
+      <div class="leg"><div class="leg-line" style="background:var(--orange);opacity:0.3;height:10px;width:20px"></div>CI 95%</div>
+    </div>
+  </div>
+  <canvas id="mainC" height="280"></canvas>
+  <div class="bottom-grid">
+    <div class="card">
+      <div class="card-title">DECOMPOSITION</div>
+      <div class="decomp-row"><div class="decomp-lbl">TREND (42%)</div><div class="decomp-bar" style="width:42%;background:var(--blue)"></div></div>
+      <div class="decomp-row"><div class="decomp-lbl">SEASONALITY (31%)</div><div class="decomp-bar" style="width:31%;background:var(--orange)"></div></div>
+      <div class="decomp-row"><div class="decomp-lbl">RESIDUAL (27%)</div><div class="decomp-bar" style="width:27%;background:var(--green)"></div></div>
+      <canvas id="decompC" height="100" style="margin-top:12px"></canvas>
+    </div>
+    <div class="card">
+      <div class="card-title">MODEL COMPARISON (MAPE)</div>
+      <div class="model-row"><span class="model-name">PROPHET</span><span class="model-score" style="color:var(--green)">2.4%</span></div>
+      <div class="model-row"><span class="model-name">ENSEMBLE</span><span class="model-score" style="color:var(--green)">2.7%</span></div>
+      <div class="model-row"><span class="model-name">LSTM</span><span class="model-score" style="color:var(--blue)">3.1%</span></div>
+      <div class="model-row"><span class="model-name">SARIMA</span><span class="model-score" style="color:var(--orange)">4.2%</span></div>
+      <div class="model-row"><span class="model-name">HOLT-WINTERS</span><span class="model-score" style="color:var(--orange)">5.8%</span></div>
+      <div class="model-row"><span class="model-name">NAIVE</span><span class="model-score" style="color:var(--red)">9.3%</span></div>
+    </div>
+    <div class="card">
+      <div class="card-title">ANOMALY DETECTION</div>
+      <canvas id="anomC" height="130"></canvas>
+    </div>
+  </div>
+</div>
+<script>
+function genSeries(n,base,trend,seasonality,noise){
+  return Array.from({length:n},(_,i)=>{
+    return base+trend*i+seasonality*Math.sin(i*Math.PI*2/7)+noise*(Math.random()-0.5);
+  });
+}
+function drawMain(){
+  const c=document.getElementById('mainC');
+  const W=c.parentElement.clientWidth; c.width=W; c.height=280;
+  const ctx=c.getContext('2d');
+  const actual=genSeries(60,4000,14,200,120);
+  const forecast=genSeries(30,actual[59],16,200,60).map((v,i)=>v+Math.random()*30);
+  const H=280; const pad=40;
+  const allV=[...actual,...forecast];
+  const maxV=Math.max(...allV)*1.05; const minV=Math.min(...allV)*0.96;
+  const toX=(i,total)=>pad+i/(total-1)*(W-pad*2);
+  const toY=v=>pad+((maxV-v)/(maxV-minV))*(H-pad*2);
+  // Grid
+  ctx.strokeStyle='#21262d'; ctx.lineWidth=1; ctx.setLineDash([2,4]);
+  for(let i=0;i<=5;i++){
+    const y=pad+(H-pad*2)*i/5;
+    ctx.beginPath(); ctx.moveTo(pad,y); ctx.lineTo(W-pad,y); ctx.stroke();
+    ctx.font='8px Share Tech Mono'; ctx.fillStyle='#484f58'; ctx.textAlign='right';
+    ctx.fillText(Math.round(maxV-(maxV-minV)*i/5),pad-4,y+3);
+  }
+  ctx.setLineDash([]);
+  // Separator
+  const splitX=toX(59,90);
+  ctx.strokeStyle='#30363d'; ctx.lineWidth=1; ctx.setLineDash([4,4]);
+  ctx.beginPath(); ctx.moveTo(splitX,pad); ctx.lineTo(splitX,H-pad); ctx.stroke();
+  ctx.setLineDash([]);
+  ctx.font='8px Share Tech Mono'; ctx.fillStyle='#484f58'; ctx.textAlign='center';
+  ctx.fillText('NOW',splitX,pad-4);
+  // CI band
+  ctx.beginPath();
+  forecast.forEach((v,i)=>{
+    const x=toX(60+i,90); const y=toY(v);
+    const ci=30+i*3;
+    if(i===0)ctx.moveTo(x,toY(v-ci));
+    else ctx.lineTo(x,toY(v-ci));
+  });
+  for(let i=forecast.length-1;i>=0;i--){
+    const x=toX(60+i,90); const ci=30+i*3;
+    ctx.lineTo(x,toY(forecast[i]+ci));
+  }
+  ctx.fillStyle='rgba(240,136,62,0.12)'; ctx.fill();
+  // Actual
+  ctx.beginPath(); ctx.strokeStyle='#58a6ff'; ctx.lineWidth=2;
+  actual.forEach((v,i)=>{const x=toX(i,90);const y=toY(v);i===0?ctx.moveTo(x,y):ctx.lineTo(x,y);});
+  ctx.stroke();
+  // Forecast
+  ctx.beginPath(); ctx.strokeStyle='#f0883e'; ctx.lineWidth=2; ctx.setLineDash([6,3]);
+  forecast.forEach((v,i)=>{const x=toX(60+i,90);const y=toY(v);i===0?ctx.moveTo(x,y):ctx.lineTo(x,y);});
+  ctx.stroke(); ctx.setLineDash([]);
+}
+function drawDecomp(){
+  const c=document.getElementById('decompC');
+  const W=c.parentElement.clientWidth-32; c.width=W; c.height=100;
+  const ctx=c.getContext('2d');
+  const seasonal=Array.from({length:W},(_,i)=>50+20*Math.sin(i*Math.PI*2/60));
+  ctx.beginPath(); ctx.strokeStyle='#f0883e'; ctx.lineWidth=1;
+  seasonal.forEach((v,i)=>{i===0?ctx.moveTo(i,v):ctx.lineTo(i,v);});
+  ctx.stroke();
+}
+function drawAnom(){
+  const c=document.getElementById('anomC');
+  const W=c.parentElement.clientWidth-32; c.width=W; c.height=130;
+  const ctx=c.getContext('2d');
+  const data=genSeries(60,100,0.5,8,10);
+  const maxV=Math.max(...data)+5; const minV=Math.min(...data)-5;
+  const toX=i=>i/(data.length-1)*(W-10)+5;
+  const toY=v=>10+((maxV-v)/(maxV-minV))*110;
+  ctx.beginPath(); ctx.strokeStyle='#3fb950'; ctx.lineWidth=1;
+  data.forEach((v,i)=>{i===0?ctx.moveTo(toX(i),toY(v)):ctx.lineTo(toX(i),toY(v));});
+  ctx.stroke();
+  // Anomalies
+  const anomIdx=[12,34,47];
+  anomIdx.forEach(i=>{
+    data[i]+=30*(Math.random()<0.5?1:-1);
+    ctx.beginPath(); ctx.arc(toX(i),toY(data[i]),5,0,Math.PI*2);
+    ctx.fillStyle='#f85149'; ctx.fill();
+  });
+  ctx.font='8px Share Tech Mono'; ctx.fillStyle='#f85149'; ctx.textAlign='center';
+  ctx.fillText('▲ 3 ANOMALIES DETECTED',W/2,125);
+}
+drawMain(); drawDecomp(); drawAnom();
+</script>
+</body>
+</html>

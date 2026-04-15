@@ -1,0 +1,228 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AI/ML Portfolio — Ethar AI</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Bebas+Neue&display=swap');
+  :root{--bg:#0a0a0a;--red:#ff2d20;--yellow:#ffd600;--white:#f5f5f0;--gray:#141414;--border:#1e1e1e;}
+  *{margin:0;padding:0;box-sizing:border-box;}
+  html{scroll-behavior:smooth;}
+  body{background:var(--bg);color:var(--white);font-family:'Space Mono',monospace;}
+  .hero{min-height:100vh;display:flex;flex-direction:column;justify-content:center;padding:60px 60px;border-bottom:3px solid var(--red);position:relative;overflow:hidden;}
+  .hero::before{content:'';position:absolute;top:0;right:0;width:40%;height:100%;background:repeating-linear-gradient(45deg,transparent,transparent 10px,rgba(255,45,32,0.03) 10px,rgba(255,45,32,0.03) 20px);}
+  .eyebrow{font-size:0.6rem;letter-spacing:4px;color:var(--yellow);margin-bottom:20px;}
+  h1{font-family:'Bebas Neue',sans-serif;font-size:clamp(4rem,10vw,9rem);line-height:0.88;color:var(--white);margin-bottom:30px;}
+  h1 em{color:var(--red);font-style:normal;display:block;}
+  .hero-desc{font-size:0.75rem;color:#666;max-width:480px;line-height:2;margin-bottom:40px;}
+  .hero-stats{display:flex;gap:40px;flex-wrap:wrap;}
+  .hero-stat .n{font-family:'Bebas Neue',sans-serif;font-size:3rem;color:var(--red);}
+  .hero-stat .l{font-size:0.55rem;letter-spacing:3px;color:#444;}
+  .portfolio-grid{padding:60px;}
+  .grid-title{font-family:'Bebas Neue',sans-serif;font-size:2rem;letter-spacing:4px;color:var(--white);margin-bottom:8px;}
+  .grid-sub{font-size:0.6rem;color:#444;letter-spacing:2px;margin-bottom:36px;}
+  .cards{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:2px;}
+  .card{background:var(--gray);border:1px solid var(--border);padding:24px;display:block;text-decoration:none;color:var(--white);transition:border-color 0.2s,background 0.2s;position:relative;overflow:hidden;}
+  .card::after{content:'';position:absolute;bottom:0;left:0;width:0;height:3px;background:var(--red);transition:width 0.3s;}
+  .card:hover{border-color:var(--red);background:#181818;}
+  .card:hover::after{width:100%;}
+  .card-num{font-family:'Bebas Neue',sans-serif;font-size:3rem;color:var(--border);position:absolute;top:10px;right:16px;line-height:1;}
+  .card-tag{font-size:0.5rem;letter-spacing:3px;color:var(--yellow);margin-bottom:8px;}
+  .card-title{font-size:0.9rem;font-weight:700;margin-bottom:8px;line-height:1.3;}
+  .card-desc{font-size:0.6rem;color:#555;line-height:1.8;}
+  .card-tech{display:flex;gap:6px;flex-wrap:wrap;margin-top:12px;}
+  .tech{font-size:0.5rem;padding:2px 8px;border:1px solid var(--border);color:#444;letter-spacing:1px;}
+  .card:hover .tech{border-color:#333;color:#666;}
+  .footer{padding:40px 60px;border-top:1px solid var(--border);display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:16px;}
+  .footer-brand{font-family:'Bebas Neue',sans-serif;font-size:1.5rem;letter-spacing:4px;color:var(--red);}
+  .footer-text{font-size:0.6rem;color:#333;letter-spacing:2px;}
+  .open-btn{display:inline-block;background:var(--red);color:#fff;font-family:'Space Mono',monospace;font-size:0.6rem;padding:6px 14px;text-decoration:none;margin-top:10px;}
+  .open-btn:hover{background:var(--yellow);color:#000;}
+  .categories{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:24px;}
+  .cat{font-size:0.55rem;letter-spacing:2px;padding:4px 12px;border:1px solid var(--border);color:#444;cursor:pointer;}
+  .cat.active{border-color:var(--red);color:var(--red);}
+</style>
+</head>
+<body>
+<div class="hero">
+  <div class="eyebrow">ETHAR AI — DATA SCIENCE & ML PORTFOLIO</div>
+  <h1>VISUAL<em>ANALYTICS</em>SUITE</h1>
+  <div class="hero-desc">17 production-grade interactive dashboards and visualizations covering the full ML lifecycle — from data exploration to model deployment and interpretability.</div>
+  <div class="hero-stats">
+    <div class="hero-stat"><div class="n">17</div><div class="l">DASHBOARDS</div></div>
+    <div class="hero-stat"><div class="n">100%</div><div class="l">PURE HTML/JS</div></div>
+    <div class="hero-stat"><div class="n">0</div><div class="l">DEPENDENCIES</div></div>
+    <div class="hero-stat"><div class="n">∞</div><div class="l">INTERACTIVE</div></div>
+  </div>
+</div>
+
+<div class="portfolio-grid">
+  <div class="grid-title">ALL DASHBOARDS</div>
+  <div class="grid-sub">CLICK ANY CARD TO OPEN — ALL RUN IN THE BROWSER, NO BACKEND REQUIRED</div>
+  <div class="cards">
+
+    <a class="card" href="01-neural-network-visualizer.html">
+      <div class="card-num">01</div>
+      <div class="card-tag">DEEP LEARNING</div>
+      <div class="card-title">Neural Network Architect Visualizer</div>
+      <div class="card-desc">Interactive multi-layer perceptron visualizer with animated weight connections, adjustable layers/nodes, and live parameter stats.</div>
+      <div class="card-tech"><span class="tech">MLP</span><span class="tech">CANVAS</span><span class="tech">ANIMATION</span></div>
+      <a class="open-btn" href="01-neural-network-visualizer.html">OPEN →</a>
+    </a>
+
+    <a class="card" href="02-model-comparison-dashboard.html">
+      <div class="card-num">02</div>
+      <div class="card-tag">MODEL EVALUATION</div>
+      <div class="card-title">ML Model Comparison Dashboard</div>
+      <div class="card-desc">Side-by-side accuracy, F1, AUC benchmarks across 6 classifiers with scatter plots and full leaderboard table.</div>
+      <div class="card-tech"><span class="tech">BENCHMARKING</span><span class="tech">CHARTS</span><span class="tech">TABLES</span></div>
+      <a class="open-btn" href="02-model-comparison-dashboard.html">OPEN →</a>
+    </a>
+
+    <a class="card" href="03-realtime-stream-monitor.html">
+      <div class="card-num">03</div>
+      <div class="card-tag">MLOPS / MONITORING</div>
+      <div class="card-title">Real-Time Data Stream Monitor</div>
+      <div class="card-desc">Live event rate dashboard with streaming charts, log viewer, latency heatmap, and anomaly counter. Auto-refreshes every 800ms.</div>
+      <div class="card-tech"><span class="tech">STREAMING</span><span class="tech">MLOPS</span><span class="tech">MONITORING</span></div>
+      <a class="open-btn" href="03-realtime-stream-monitor.html">OPEN →</a>
+    </a>
+
+    <a class="card" href="04-confusion-roc-dashboard.html">
+      <div class="card-num">04</div>
+      <div class="card-tag">EVALUATION METRICS</div>
+      <div class="card-title">Confusion Matrix & ROC Suite</div>
+      <div class="card-desc">Full classification report: confusion matrix with TP/FP/TN/FN, multi-model ROC curves, PR curve, and feature importance.</div>
+      <div class="card-tech"><span class="tech">ROC</span><span class="tech">PRECISION-RECALL</span><span class="tech">SHAP</span></div>
+      <a class="open-btn" href="04-confusion-roc-dashboard.html">OPEN →</a>
+    </a>
+
+    <a class="card" href="05-training-monitor.html">
+      <div class="card-num">05</div>
+      <div class="card-tag">TRAINING LOOP</div>
+      <div class="card-title">Live Training Loss Monitor</div>
+      <div class="card-desc">Simulate training a model epoch-by-epoch. Watch loss curves, accuracy, LR schedule, gradient norms, and epoch log in real time.</div>
+      <div class="card-tech"><span class="tech">LOSS CURVES</span><span class="tech">SIMULATION</span><span class="tech">INTERACTIVE</span></div>
+      <a class="open-btn" href="05-training-monitor.html">OPEN →</a>
+    </a>
+
+    <a class="card" href="06-dataset-explorer.html">
+      <div class="card-num">06</div>
+      <div class="card-tag">EDA</div>
+      <div class="card-title">Dataset Explorer & EDA Dashboard</div>
+      <div class="card-desc">Full EDA suite: distributions, scatter plots, correlation heatmap, missing value analysis, class distribution and dataset metadata.</div>
+      <div class="card-tech"><span class="tech">EDA</span><span class="tech">CORRELATION</span><span class="tech">STATISTICS</span></div>
+      <a class="open-btn" href="06-dataset-explorer.html">OPEN →</a>
+    </a>
+
+    <a class="card" href="07-nlp-text-analytics.html">
+      <div class="card-num">07</div>
+      <div class="card-tag">NLP</div>
+      <div class="card-title">NLP Text Analytics Dashboard</div>
+      <div class="card-desc">Paste any text and get: sentiment analysis, named entity recognition, POS tagging, term frequency chart, and text statistics.</div>
+      <div class="card-tech"><span class="tech">NLP</span><span class="tech">SENTIMENT</span><span class="tech">NER</span></div>
+      <a class="open-btn" href="07-nlp-text-analytics.html">OPEN →</a>
+    </a>
+
+    <a class="card" href="08-timeseries-forecasting.html">
+      <div class="card-num">08</div>
+      <div class="card-tag">FORECASTING</div>
+      <div class="card-title">Time Series Forecasting Dashboard</div>
+      <div class="card-desc">Actual vs forecast with confidence intervals, model comparison (Prophet, ARIMA, LSTM), decomposition, and anomaly detection.</div>
+      <div class="card-tech"><span class="tech">PROPHET</span><span class="tech">ARIMA</span><span class="tech">LSTM</span></div>
+      <a class="open-btn" href="08-timeseries-forecasting.html">OPEN →</a>
+    </a>
+
+    <a class="card" href="09-kmeans-clustering.html">
+      <div class="card-num">09</div>
+      <div class="card-tag">UNSUPERVISED LEARNING</div>
+      <div class="card-title">K-Means Clustering Visualizer</div>
+      <div class="card-desc">Real K-Means++ implementation running in the browser. Adjust K, data distribution, watch centroids update. Elbow curve included.</div>
+      <div class="card-tech"><span class="tech">K-MEANS</span><span class="tech">CLUSTERING</span><span class="tech">ELBOW</span></div>
+      <a class="open-btn" href="09-kmeans-clustering.html">OPEN →</a>
+    </a>
+
+    <a class="card" href="10-pipeline-architecture.html">
+      <div class="card-num">10</div>
+      <div class="card-tag">SYSTEM DESIGN</div>
+      <div class="card-title">AI Pipeline Architecture Diagram</div>
+      <div class="card-desc">Interactive SVG architecture diagram showing full ML pipeline: ingestion → ETL → feature store → training → serving → monitoring.</div>
+      <div class="card-tech"><span class="tech">MLOPS</span><span class="tech">SYSTEM DESIGN</span><span class="tech">SVG</span></div>
+      <a class="open-btn" href="10-pipeline-architecture.html">OPEN →</a>
+    </a>
+
+    <a class="card" href="11-rl-environment-viewer.html">
+      <div class="card-num">11</div>
+      <div class="card-tag">REINFORCEMENT LEARNING</div>
+      <div class="card-title">RL Q-Learning Environment Viewer</div>
+      <div class="card-desc">Real Q-Learning agent navigating a GridWorld. Watch Q-values update, epsilon decay, reward curves and episode log in real time.</div>
+      <div class="card-tech"><span class="tech">Q-LEARNING</span><span class="tech">GRIDWORLD</span><span class="tech">RL</span></div>
+      <a class="open-btn" href="11-rl-environment-viewer.html">OPEN →</a>
+    </a>
+
+    <a class="card" href="12-gradient-descent-visualizer.html">
+      <div class="card-num">12</div>
+      <div class="card-tag">OPTIMIZATION</div>
+      <div class="card-title">Gradient Descent Visualizer</div>
+      <div class="card-desc">Compare GD, SGD+Momentum, AdaGrad, and Adam on 4 loss landscapes (convex, saddle, Beale, Himmelblau). Click to set start position.</div>
+      <div class="card-tech"><span class="tech">ADAM</span><span class="tech">ADAGRAD</span><span class="tech">OPTIMIZATION</span></div>
+      <a class="open-btn" href="12-gradient-descent-visualizer.html">OPEN →</a>
+    </a>
+
+    <a class="card" href="13-executive-kpi-dashboard.html">
+      <div class="card-num">13</div>
+      <div class="card-tag">EXECUTIVE REPORTING</div>
+      <div class="card-title">AI Executive KPI Dashboard</div>
+      <div class="card-desc">C-suite ready dashboard: models in prod, accuracy, predictions/day, latency, drift alerts, OKR progress, and model leaderboard.</div>
+      <div class="card-tech"><span class="tech">KPI</span><span class="tech">OKR</span><span class="tech">REPORTING</span></div>
+      <a class="open-btn" href="13-executive-kpi-dashboard.html">OPEN →</a>
+    </a>
+
+    <a class="card" href="14-attention-visualizer.html">
+      <div class="card-num">14</div>
+      <div class="card-tag">TRANSFORMERS / XAI</div>
+      <div class="card-title">Attention Mechanism Visualizer</div>
+      <div class="card-desc">Tokenize any sentence and visualize multi-head attention patterns. Arc diagram + attention matrix with per-head switching.</div>
+      <div class="card-tech"><span class="tech">ATTENTION</span><span class="tech">TRANSFORMER</span><span class="tech">XAI</span></div>
+      <a class="open-btn" href="14-attention-visualizer.html">OPEN →</a>
+    </a>
+
+    <a class="card" href="15-data-augmentation-studio.html">
+      <div class="card-num">15</div>
+      <div class="card-tag">COMPUTER VISION</div>
+      <div class="card-title">Data Augmentation Studio</div>
+      <div class="card-desc">Interactive augmentation pipeline builder. Toggle flips, rotations, noise, cutout, jitter. Preview 4 augmented variants live.</div>
+      <div class="card-tech"><span class="tech">AUGMENTATION</span><span class="tech">CV</span><span class="tech">ALBUMENTATIONS</span></div>
+      <a class="open-btn" href="15-data-augmentation-studio.html">OPEN →</a>
+    </a>
+
+    <a class="card" href="16-shap-explainability.html">
+      <div class="card-num">16</div>
+      <div class="card-tag">EXPLAINABILITY / XAI</div>
+      <div class="card-title">SHAP Explainability Dashboard</div>
+      <div class="card-desc">Force plots, SHAP value tables, waterfall charts, and global feature importance for churn prediction model explanations.</div>
+      <div class="card-tech"><span class="tech">SHAP</span><span class="tech">XAI</span><span class="tech">LIME</span></div>
+      <a class="open-btn" href="16-shap-explainability.html">OPEN →</a>
+    </a>
+
+    <a class="card" href="17-gan-training-visualizer.html">
+      <div class="card-num">17</div>
+      <div class="card-tag">GENERATIVE AI</div>
+      <div class="card-title">GAN Training Progress Visualizer</div>
+      <div class="card-desc">Simulate GAN training: watch G/D losses fight, discriminator distributions converge, FID score improve, and samples get cleaner.</div>
+      <div class="card-tech"><span class="tech">GAN</span><span class="tech">GENERATIVE</span><span class="tech">FID</span></div>
+      <a class="open-btn" href="17-gan-training-visualizer.html">OPEN →</a>
+    </a>
+
+  </div>
+</div>
+
+<div class="footer">
+  <div>
+    <div class="footer-brand">ETHAR.AI</div>
+    <div class="footer-text">DATA SCIENCE & ML PORTFOLIO / 17 INTERACTIVE DASHBOARDS</div>
+  </div>
+  <div class="footer-text">ALL BUILT WITH PURE HTML + CSS + CANVAS — NO FRAMEWORKS — ZERO DEPENDENCIES<br>OPEN ANY FILE DIRECTLY IN A BROWSER OR HOST ON GITHUB PAGES</div>
+</div>
+</body>
+</html>

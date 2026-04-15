@@ -1,0 +1,300 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>LLM Token Analytics — Ethar AI</title>
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;700;800&family=IBM+Plex+Mono:wght@400;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #F5F0E8;
+    --ink: #0D0D0D;
+    --red: #E63329;
+    --blue: #0057FF;
+    --yellow: #FFCC00;
+    --surface: #EDEBE3;
+    --border: #C8C4BC;
+    --font-h: 'Syne', sans-serif;
+    --font-m: 'IBM Plex Mono', monospace;
+  }
+  *{margin:0;padding:0;box-sizing:border-box;}
+  body {
+    background:var(--bg);
+    color:var(--ink);
+    font-family:var(--font-m);
+    min-height:100vh;
+  }
+  header {
+    display:grid;
+    grid-template-columns: 1fr auto 1fr;
+    align-items:center;
+    padding:28px 48px;
+    border-bottom:3px solid var(--ink);
+  }
+  .h-logo { font-family:var(--font-h); font-weight:800; font-size:22px; }
+  .h-center { text-align:center; font-size:11px; letter-spacing:3px; text-transform:uppercase; }
+  .h-right { text-align:right; font-size:11px; letter-spacing:1px; opacity:.5; }
+
+  .big-number-row {
+    display:grid; grid-template-columns:repeat(3,1fr);
+    border-bottom:2px solid var(--ink);
+  }
+  .big-num-card {
+    padding:48px;
+    border-right:2px solid var(--ink);
+    position:relative; overflow:hidden;
+  }
+  .big-num-card:last-child { border-right:none; }
+  .big-num-card:nth-child(1) { background:var(--ink); color:var(--bg); }
+  .big-num-card:nth-child(2) { background:var(--red); color:white; }
+  .big-num-card:nth-child(3) { background:var(--bg); }
+
+  .bnc-label { font-size:11px; letter-spacing:3px; text-transform:uppercase; opacity:.6; margin-bottom:16px; }
+  .bnc-val {
+    font-family:var(--font-h);
+    font-size:64px; font-weight:800; line-height:1;
+    letter-spacing:-3px;
+  }
+  .bnc-sub { margin-top:12px; font-size:12px; opacity:.6; }
+
+  .mid-grid {
+    display:grid; grid-template-columns: 3fr 2fr;
+    border-bottom:2px solid var(--ink);
+  }
+  .section {
+    padding:40px 48px;
+  }
+  .section + .section { border-left:2px solid var(--ink); }
+  .sec-title {
+    font-family:var(--font-h); font-size:11px;
+    letter-spacing:3px; text-transform:uppercase;
+    margin-bottom:32px; opacity:.5;
+  }
+
+  /* Token heatmap */
+  .token-heatmap {
+    display:flex; flex-wrap:wrap; gap:4px;
+  }
+  .token {
+    padding:4px 8px;
+    font-size:13px;
+    font-family:var(--font-m);
+    cursor:default;
+    transition:transform .15s;
+    border:1px solid transparent;
+  }
+  .token:hover { transform:scale(1.1); border-color:var(--ink); }
+
+  /* Model compare bars */
+  .model-bars { display:flex; flex-direction:column; gap:16px; }
+  .mb-row { display:flex; flex-direction:column; gap:6px; }
+  .mb-header { display:flex; justify-content:space-between; font-size:12px; }
+  .mb-name { font-weight:600; }
+  .mb-val { opacity:.6; }
+  .mb-track { height:24px; background:var(--surface); border:1px solid var(--border); position:relative; overflow:hidden; }
+  .mb-fill { height:100%; transition: width 1.2s cubic-bezier(.77,0,.18,1); }
+
+  /* Distribution chart */
+  .bottom-row {
+    display:grid; grid-template-columns:1fr 1fr 1fr;
+    border-bottom:2px solid var(--ink);
+  }
+  .dist-section {
+    padding:40px 48px;
+    border-right:2px solid var(--ink);
+  }
+  .dist-section:last-child { border-right:none; }
+
+  .bar-chart { display:flex; align-items:flex-end; gap:6px; height:120px; }
+  .bar-col { flex:1; display:flex; flex-direction:column; align-items:center; gap:4px; }
+  .bar-rect { width:100%; border:1px solid var(--ink); transition:height 1s ease; }
+  .bar-lbl { font-size:9px; letter-spacing:1px; text-align:center; opacity:.5; }
+
+  .donut-wrap { display:flex; justify-content:center; margin:8px 0; }
+
+  .cost-table { width:100%; border-collapse:collapse; }
+  .cost-table td { padding:10px 0; border-bottom:1px solid var(--border); font-size:12px; }
+  .cost-table td:last-child { text-align:right; font-weight:600; }
+
+  footer {
+    padding:20px 48px;
+    display:flex; justify-content:space-between;
+    font-size:10px; letter-spacing:2px; text-transform:uppercase; opacity:.4;
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="h-logo">ETHAR AI</div>
+  <div class="h-center">LLM Token Analytics Dashboard</div>
+  <div class="h-right">Updated: Just Now</div>
+</header>
+
+<div class="big-number-row">
+  <div class="big-num-card">
+    <div class="bnc-label">Total Tokens Processed</div>
+    <div class="bnc-val" id="totalTokens">2.4B</div>
+    <div class="bnc-sub">Last 30 days · All models</div>
+  </div>
+  <div class="big-num-card">
+    <div class="bnc-label">Avg Tokens / Request</div>
+    <div class="bnc-val">847</div>
+    <div class="bnc-sub">↑ 12% vs prior period</div>
+  </div>
+  <div class="big-num-card">
+    <div class="bnc-label">Cost per 1K tokens</div>
+    <div class="bnc-val" style="color:var(--red)">$0.031</div>
+    <div class="bnc-sub">Blended · Input + Output</div>
+  </div>
+</div>
+
+<div class="mid-grid">
+  <div class="section">
+    <div class="sec-title">Token Probability Heatmap — Sample Completion</div>
+    <div class="token-heatmap" id="tokenHeatmap"></div>
+  </div>
+  <div class="section">
+    <div class="sec-title">Model Throughput (tokens/sec)</div>
+    <div class="model-bars" id="modelBars"></div>
+  </div>
+</div>
+
+<div class="bottom-row">
+  <div class="dist-section">
+    <div class="sec-title">Token Length Distribution</div>
+    <div class="bar-chart" id="lenDist"></div>
+  </div>
+  <div class="dist-section">
+    <div class="sec-title">Top Token Categories</div>
+    <canvas id="donutCanvas" width="220" height="160" style="display:block;margin:0 auto;"></canvas>
+  </div>
+  <div class="dist-section">
+    <div class="sec-title">Cost Breakdown</div>
+    <table class="cost-table">
+      <tr><td>GPT-4o Input</td><td>$1,240.00</td></tr>
+      <tr><td>GPT-4o Output</td><td>$3,480.00</td></tr>
+      <tr><td>Claude 3.5 Input</td><td>$892.00</td></tr>
+      <tr><td>Claude 3.5 Output</td><td>$2,134.00</td></tr>
+      <tr><td>Embedding</td><td>$123.00</td></tr>
+      <tr><td><strong>Total</strong></td><td><strong>$7,869.00</strong></td></tr>
+    </table>
+  </div>
+</div>
+
+<footer>
+  <span>Ethar AI · Token Analytics v2.1</span>
+  <span>30-day window · UTC+0</span>
+</footer>
+
+<script>
+// Token heatmap
+const sampleTokens = [
+  {t:'The', p:.99}, {t:' neural', p:.87}, {t:' network', p:.95},
+  {t:' architecture', p:.72}, {t:' uses', p:.91}, {t:' multi', p:.68},
+  {t:'-head', p:.97}, {t:' attention', p:.88}, {t:' mechanisms', p:.76},
+  {t:' to', p:.99}, {t:' capture', p:.65}, {t:' long', p:.82},
+  {t:'-range', p:.93}, {t:' dependencies', p:.71}, {t:' in', p:.98},
+  {t:' sequential', p:.59}, {t:' data', p:.94}, {t:'.', p:.99},
+  {t:' Each', p:.73}, {t:' head', p:.86}, {t:' learns', p:.77},
+  {t:' distinct', p:.64}, {t:' representations', p:.69}, {t:'.', p:.98},
+];
+
+const hm = document.getElementById('tokenHeatmap');
+sampleTokens.forEach(tok=>{
+  const el = document.createElement('span'); el.className='token';
+  const p = tok.p;
+  let bg;
+  if(p > 0.9) bg = `rgba(0,87,255,${0.3+p*0.5})`;
+  else if(p > 0.7) bg = `rgba(255,204,0,${0.4+p*0.3})`;
+  else bg = `rgba(230,51,41,${0.2+p*0.5})`;
+  el.style.background = bg;
+  el.style.color = p > 0.85 ? '#fff' : '#0D0D0D';
+  el.title = `p=${tok.p.toFixed(2)}`;
+  el.textContent = tok.t;
+  hm.appendChild(el);
+});
+
+// Model bars
+const models = [
+  {name:'GPT-4o', tps:312, color:'#0057FF'},
+  {name:'Claude 3.5', tps:428, color:'#E63329'},
+  {name:'Llama 3.1', tps:891, color:'#0D0D0D'},
+  {name:'Mistral', tps:634, color:'#FFCC00'},
+  {name:'Gemini Pro', tps:287, color:'#0057FF'},
+];
+const mbDiv = document.getElementById('modelBars');
+const maxTPS = 891;
+models.forEach(m=>{
+  const row = document.createElement('div'); row.className='mb-row';
+  row.innerHTML=`
+    <div class="mb-header"><span class="mb-name">${m.name}</span><span class="mb-val">${m.tps} tok/s</span></div>
+    <div class="mb-track"><div class="mb-fill" data-w="${(m.tps/maxTPS*100).toFixed(1)}" style="width:0%;background:${m.color}"></div></div>
+  `;
+  mbDiv.appendChild(row);
+});
+setTimeout(()=>{
+  document.querySelectorAll('.mb-fill').forEach(f=>{ f.style.width=f.dataset.w+'%'; });
+},200);
+
+// Length distribution bars
+const lenData = [
+  {l:'0-100',v:18},{l:'100-250',v:34},{l:'250-500',v:62},{l:'500-1K',v:48},
+  {l:'1K-2K',v:31},{l:'2K+',v:14}
+];
+const maxLen = 62;
+const ld = document.getElementById('lenDist');
+lenData.forEach((d,i)=>{
+  const col = document.createElement('div'); col.className='bar-col';
+  const colors = ['#0057FF','#E63329','#FFCC00','#0D0D0D','#E63329','#0057FF'];
+  col.innerHTML=`
+    <div class="bar-rect" data-h="${(d.v/maxLen*100).toFixed(0)}" style="height:0%;background:${colors[i]};border-color:transparent"></div>
+    <div class="bar-lbl">${d.l}</div>
+  `;
+  ld.appendChild(col);
+});
+setTimeout(()=>{
+  document.querySelectorAll('.bar-rect').forEach(b=>{ b.style.height=b.dataset.h+'%'; });
+},300);
+
+// Donut chart
+const dc = document.getElementById('donutCanvas');
+const dctx = dc.getContext('2d');
+const W=220,H=160,cx=110,cy=80,r=60,innerR=36;
+const segments=[
+  {label:'Code',val:32,color:'#0057FF'},
+  {label:'Prose',val:28,color:'#E63329'},
+  {label:'Reasoning',val:22,color:'#FFCC00'},
+  {label:'Data',val:18,color:'#0D0D0D'},
+];
+let angle=-Math.PI/2;
+segments.forEach(s=>{
+  const sweep=(s.val/100)*2*Math.PI;
+  dctx.beginPath();
+  dctx.moveTo(cx,cy);
+  dctx.arc(cx,cy,r,angle,angle+sweep);
+  dctx.closePath();
+  dctx.fillStyle=s.color;
+  dctx.fill();
+  angle+=sweep;
+});
+dctx.beginPath();
+dctx.arc(cx,cy,innerR,0,2*Math.PI);
+dctx.fillStyle='#F5F0E8';
+dctx.fill();
+dctx.fillStyle='#0D0D0D';
+dctx.font='bold 13px IBM Plex Mono';
+dctx.textAlign='center';
+dctx.fillText('Token',cx,cy-4);
+dctx.fillText('Types',cx,cy+12);
+// Legend
+const lx=8, ly=10;
+segments.forEach((s,i)=>{
+  const y=ly+i*20;
+  dctx.fillStyle=s.color; dctx.fillRect(lx,y,10,10);
+  dctx.fillStyle='#0D0D0D'; dctx.font='10px IBM Plex Mono'; dctx.textAlign='left';
+  dctx.fillText(s.label+' '+s.val+'%',lx+14,y+9);
+});
+</script>
+</body>
+</html>

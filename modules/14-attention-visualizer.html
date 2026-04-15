@@ -1,0 +1,230 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Attention Mechanism Visualizer</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Inconsolata:wght@400;700;900&family=Teko:wght@600;700&display=swap');
+  :root{--bg:#07090f;--s:#0d1117;--border:#161b22;--orange:#ff6b00;--yellow:#ffd60a;--teal:#00f5d4;--pink:#ff006e;--text:#e2e8f0;--dim:#30363d;}
+  *{margin:0;padding:0;box-sizing:border-box;}
+  body{background:var(--bg);color:var(--text);font-family:'Inconsolata',monospace;min-height:100vh;}
+  .hdr{padding:16px 36px;border-bottom:2px solid var(--orange);display:flex;justify-content:space-between;align-items:center;}
+  .brand{font-family:'Teko',sans-serif;font-size:2rem;letter-spacing:4px;color:var(--orange);}
+  .sub{font-size:0.6rem;color:var(--dim);letter-spacing:3px;}
+  .controls{display:flex;gap:10px;padding:12px 36px;border-bottom:1px solid var(--border);flex-wrap:wrap;align-items:center;}
+  .btn{background:var(--orange);color:#000;border:none;font-family:'Inconsolata',monospace;font-size:0.7rem;font-weight:700;padding:7px 18px;cursor:pointer;letter-spacing:1px;}
+  .btn:hover{background:var(--yellow);}
+  .btn.sec{background:transparent;border:1px solid var(--orange);color:var(--orange);}
+  select,input[type=text]{background:var(--s);border:1px solid var(--dim);color:var(--text);font-family:'Inconsolata',monospace;font-size:0.75rem;padding:6px 10px;}
+  input[type=text]{width:340px;}
+  .layout{display:grid;grid-template-columns:1fr 1fr;gap:0;min-height:calc(100vh - 90px);}
+  .pane{border-right:1px solid var(--border);padding:20px;}
+  .pane:last-child{border-right:none;}
+  .pane-title{font-family:'Teko',sans-serif;font-size:1.1rem;letter-spacing:3px;color:var(--orange);margin-bottom:14px;}
+  /* Token selector */
+  .token-row{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:20px;}
+  .token{padding:8px 14px;border:2px solid var(--dim);cursor:pointer;font-size:0.85rem;transition:all 0.15s;}
+  .token:hover{border-color:var(--orange);}
+  .token.selected{background:var(--orange);color:#000;border-color:var(--orange);font-weight:700;}
+  .token.highlighted{border-color:var(--teal);}
+  /* Attention matrix */
+  .matrix-wrap{overflow-x:auto;}
+  .matrix-grid{display:inline-grid;gap:2px;}
+  .matrix-cell{width:42px;height:42px;display:flex;align-items:center;justify-content:center;font-size:0.6rem;cursor:pointer;transition:transform 0.1s;}
+  .matrix-cell:hover{transform:scale(1.2);z-index:10;}
+  .m-header{display:flex;align-items:center;justify-content:center;font-size:0.55rem;letter-spacing:1px;color:var(--dim);}
+  /* Head selector */
+  .head-grid{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:16px;}
+  .head-btn{padding:4px 12px;border:1px solid var(--dim);cursor:pointer;font-size:0.65rem;background:transparent;color:var(--text);}
+  .head-btn.active{background:var(--teal);color:#000;border-color:var(--teal);font-weight:700;}
+  /* Attention arcs */
+  canvas{display:block;}
+  .info-box{background:var(--s);border:1px solid var(--dim);padding:12px;margin-top:14px;font-size:0.65rem;line-height:1.8;}
+  .info-box span{color:var(--orange);}
+</style>
+</head>
+<body>
+<div class="hdr">
+  <div class="brand">ATTENTION VISUALIZER</div>
+  <div class="sub">ETHAR.AI / TRANSFORMER INTERPRETABILITY</div>
+</div>
+<div class="controls">
+  <input type="text" id="textInput" value="The model quickly learned to classify complex patterns">
+  <button class="btn" onclick="tokenize()">TOKENIZE & ANALYZE</button>
+  <select id="layerSel" onchange="recompute()">
+    <option>LAYER 1</option><option>LAYER 2</option><option selected>LAYER 3</option><option>LAYER 4</option><option>LAYER 5</option><option>LAYER 6</option>
+  </select>
+  <button class="btn sec" onclick="randomize()">RANDOMIZE WEIGHTS</button>
+</div>
+<div class="layout">
+  <!-- Left: Attention Arc Diagram -->
+  <div class="pane">
+    <div class="pane-title">ATTENTION ARC DIAGRAM</div>
+    <div style="margin-bottom:10px;">
+      <span style="font-size:0.55rem;color:var(--dim);letter-spacing:2px;">SELECT ATTENTION HEAD:</span>
+      <div class="head-grid" id="headGrid"></div>
+    </div>
+    <canvas id="arcC" height="360"></canvas>
+    <div class="info-box">
+      <span>SELECTED TOKEN:</span> <span id="selTok">—</span><br>
+      <span>ATTENDING TO:</span> <span id="attTo">—</span><br>
+      <span>MAX ATTENTION:</span> <span id="maxAtt">—</span><br>
+      <span>ENTROPY:</span> <span id="entropy">—</span>
+    </div>
+  </div>
+  <!-- Right: Attention Matrix -->
+  <div class="pane">
+    <div class="pane-title">ATTENTION WEIGHT MATRIX</div>
+    <div style="margin-bottom:10px;font-size:0.55rem;color:var(--dim);letter-spacing:2px;">ROW = QUERY TOKEN · COL = KEY TOKEN · HOVER FOR VALUE</div>
+    <div class="matrix-wrap" id="matrixWrap"></div>
+    <div style="display:flex;align-items:center;gap:8px;margin-top:12px;">
+      <span style="font-size:0.6rem;color:var(--dim)">LOW</span>
+      <canvas id="legendC" width="180" height="14"></canvas>
+      <span style="font-size:0.6rem;color:var(--dim)">HIGH</span>
+    </div>
+    <div class="token-row" id="tokenSelector" style="margin-top:16px;"></div>
+  </div>
+</div>
+<script>
+let tokens=[], attnMatrix=[], selectedHead=0, selectedToken=0, numHeads=8;
+const HEAD_COLORS=['#ff6b00','#ffd60a','#00f5d4','#ff006e','#a855f7','#22d3ee','#84cc16','#f97316'];
+
+function softmax(arr){const mx=Math.max(...arr);const ex=arr.map(v=>Math.exp(v-mx));const s=ex.reduce((a,b)=>a+b,0);return ex.map(v=>v/s);}
+function entropy(arr){return -arr.reduce((s,v)=>s+(v>0?v*Math.log2(v+1e-10):0),0);}
+
+function tokenize(){
+  const text=document.getElementById('textInput').value.trim();
+  tokens=text.split(/\s+/).slice(0,10);
+  buildHeads(); recompute();
+}
+
+function buildHeads(){
+  const hg=document.getElementById('headGrid'); hg.innerHTML='';
+  for(let i=0;i<numHeads;i++){
+    const b=document.createElement('button'); b.className='head-btn'+(i===selectedHead?' active':'');
+    b.textContent='H'+(i+1); b.style.borderColor=i===selectedHead?HEAD_COLORS[i]:'';
+    b.onclick=()=>{selectedHead=i;document.querySelectorAll('.head-btn').forEach((btn,bi)=>{btn.className='head-btn'+(bi===i?' active':'');btn.style.borderColor=bi===i?HEAD_COLORS[i]:'';});recompute();};
+    hg.appendChild(b);
+  }
+}
+
+function recompute(){
+  const n=tokens.length;
+  // Generate synthetic attention matrix biased by head characteristics
+  attnMatrix=[];
+  for(let i=0;i<n;i++){
+    let row=Array.from({length:n},(_,j)=>{
+      const dist=Math.abs(i-j);
+      // Each head has a different pattern
+      if(selectedHead===0) return Math.exp(-dist*0.5)+Math.random()*0.3; // local
+      if(selectedHead===1) return j<i?Math.exp(-dist*0.3)+Math.random()*0.2:Math.random()*0.1; // backward
+      if(selectedHead===2) return j===0?2+Math.random():Math.random()*0.4; // attend to start
+      if(selectedHead===3) return i===j?2:Math.random()*0.5; // diagonal
+      if(selectedHead===4) return Math.random(); // random/global
+      if(selectedHead===5) return j>i?Math.exp(-(j-i)*0.4)+Math.random()*0.2:Math.random()*0.1; // forward
+      return Math.exp(-dist*0.8)+Math.random()*0.5;
+    });
+    attnMatrix.push(softmax(row));
+  }
+  renderMatrix(); renderArcs(); buildTokenSelector();
+}
+
+function renderMatrix(){
+  const n=tokens.length;
+  const wrap=document.getElementById('matrixWrap'); wrap.innerHTML='';
+  const grid=document.createElement('div');
+  grid.className='matrix-grid';
+  grid.style.gridTemplateColumns=`40px repeat(${n},42px)`;
+  // Top-left corner
+  const corner=document.createElement('div'); corner.className='m-header'; grid.appendChild(corner);
+  // Column headers
+  tokens.forEach(t=>{const h=document.createElement('div');h.className='m-header';h.style.cssText='width:42px;height:28px;font-size:0.5rem;writing-mode:vertical-rl;display:flex;align-items:center;justify-content:center;color:#888;transform:rotate(180deg);overflow:hidden;white-space:nowrap;';h.textContent=t.slice(0,5);grid.appendChild(h);});
+  // Rows
+  attnMatrix.forEach((row,ri)=>{
+    const rh=document.createElement('div');rh.className='m-header';rh.style.cssText='width:40px;height:42px;font-size:0.5rem;justify-content:flex-end;padding-right:4px;';rh.textContent=tokens[ri].slice(0,5);grid.appendChild(rh);
+    row.forEach((v,ci)=>{
+      const cell=document.createElement('div');cell.className='matrix-cell';
+      const intensity=Math.pow(v,0.5);
+      cell.style.background=`rgba(255,107,0,${intensity})`;
+      cell.style.color=intensity>0.5?'#000':'#666';
+      cell.textContent=v.toFixed(2);
+      cell.title=`${tokens[ri]} → ${tokens[ci]}: ${v.toFixed(4)}`;
+      cell.onmouseenter=()=>updateInfo(ri,ci,row);
+      grid.appendChild(cell);
+    });
+  });
+  wrap.appendChild(grid);
+  // Legend
+  const lc=document.getElementById('legendC');const lctx=lc.getContext('2d');
+  const grad=lctx.createLinearGradient(0,0,180,0);
+  grad.addColorStop(0,'#07090f');grad.addColorStop(1,'#ff6b00');
+  lctx.fillStyle=grad;lctx.fillRect(0,0,180,14);
+}
+
+function updateInfo(ri,ci,row){
+  document.getElementById('selTok').textContent=tokens[ri]||'—';
+  document.getElementById('attTo').textContent=tokens[ci]||'—';
+  document.getElementById('maxAtt').textContent=Math.max(...row).toFixed(4);
+  document.getElementById('entropy').textContent=entropy(row).toFixed(3)+' bits';
+}
+
+function renderArcs(){
+  const c=document.getElementById('arcC');
+  c.width=c.parentElement.clientWidth-40;c.height=360;
+  const ctx=c.getContext('2d');ctx.clearRect(0,0,c.width,360);
+  const n=tokens.length;if(!n)return;
+  const pad=20;const W=c.width;
+  const tW=(W-pad*2)/Math.max(n-1,1);
+  const y1=60,y2=300;
+  const col=HEAD_COLORS[selectedHead];
+  // Draw arcs from selected token
+  const row=attnMatrix[selectedToken]||[];
+  row.forEach((v,ti)=>{
+    if(v<0.02)return;
+    const x1=pad+selectedToken*tW,x2=pad+ti*tW;
+    const cx=(x1+x2)/2,cy=y1+(y2-y1)/2-Math.abs(x2-x1)*0.35;
+    ctx.beginPath();ctx.moveTo(x1,y1);ctx.quadraticCurveTo(cx,cy,x2,y2);
+    ctx.strokeStyle=col;ctx.globalAlpha=v*0.9+0.05;ctx.lineWidth=v*6+0.5;ctx.stroke();
+    ctx.globalAlpha=1;
+  });
+  // Token boxes - top (query)
+  tokens.forEach((t,i)=>{
+    const x=pad+i*tW;const isSelected=i===selectedToken;
+    ctx.fillStyle=isSelected?col:'#161b22';ctx.fillRect(x-28,y1-18,56,28);
+    ctx.strokeStyle=isSelected?col:'#30363d';ctx.lineWidth=isSelected?2:1;ctx.strokeRect(x-28,y1-18,56,28);
+    ctx.font='bold 10px Inconsolata';ctx.fillStyle=isSelected?'#000':col;ctx.textAlign='center';ctx.textBaseline='middle';
+    ctx.fillText(t.slice(0,5),x,y1-4);
+  });
+  // Token boxes - bottom (key)
+  tokens.forEach((t,i)=>{
+    const x=pad+i*tW;const attnVal=row[i]||0;
+    const alpha=0.1+attnVal*0.9;
+    ctx.fillStyle=`rgba(255,107,0,${alpha})`;ctx.fillRect(x-28,y2-10,56,28);
+    ctx.strokeStyle=col;ctx.lineWidth=0.5;ctx.strokeRect(x-28,y2-10,56,28);
+    ctx.font='10px Inconsolata';ctx.fillStyle=attnVal>0.3?'#000':'#888';ctx.textAlign='center';ctx.textBaseline='middle';
+    ctx.fillText(t.slice(0,5),x,y2+4);
+    // Attention score label
+    ctx.font='9px Inconsolata';ctx.fillStyle=col;
+    ctx.fillText(attnVal.toFixed(2),x,y2+20);
+  });
+  // Labels
+  ctx.font='9px Inconsolata';ctx.fillStyle='#555';ctx.textAlign='left';
+  ctx.fillText('QUERY (click to select)',pad,y1-28);
+  ctx.fillText('KEY / VALUE',pad,y2+36);
+}
+
+function buildTokenSelector(){
+  const ts=document.getElementById('tokenSelector');ts.innerHTML='';
+  tokens.forEach((t,i)=>{
+    const el=document.createElement('div');el.className='token'+(i===selectedToken?' selected':'');
+    el.textContent=t;el.onclick=()=>{selectedToken=i;document.querySelectorAll('.token').forEach((e,ei)=>e.className='token'+(ei===i?' selected':''));renderArcs();};
+    ts.appendChild(el);
+  });
+}
+
+function randomize(){attnMatrix=[];recompute();}
+
+tokenize();
+</script>
+</body>
+</html>

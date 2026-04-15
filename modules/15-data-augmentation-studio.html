@@ -1,0 +1,306 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Data Augmentation Studio</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Overpass+Mono:wght@400;700&family=Righteous&display=swap');
+  :root{--bg:#f0f4f8;--ink:#0f172a;--a:#7c3aed;--b:#0ea5e9;--c:#f59e0b;--d:#10b981;--e:#ef4444;--surface:#fff;--border:#cbd5e1;}
+  *{margin:0;padding:0;box-sizing:border-box;}
+  body{background:var(--bg);color:var(--ink);font-family:'Overpass Mono',monospace;}
+  .hdr{background:var(--ink);padding:14px 36px;display:flex;justify-content:space-between;align-items:center;}
+  .brand{font-family:'Righteous',sans-serif;font-size:1.5rem;letter-spacing:3px;color:#fff;}
+  .brand em{color:#a78bfa;font-style:normal;}
+  .sub{font-size:0.55rem;color:#64748b;letter-spacing:2px;}
+  .workspace{display:grid;grid-template-columns:220px 1fr 220px;height:calc(100vh - 48px);}
+  /* Left Panel */
+  .left-panel{background:var(--surface);border-right:2px solid var(--ink);overflow-y:auto;}
+  .panel-section{border-bottom:1px solid var(--border);padding:14px;}
+  .ps-title{font-size:0.55rem;letter-spacing:3px;color:#94a3b8;margin-bottom:10px;}
+  .aug-item{display:flex;align-items:center;justify-content:space-between;padding:6px 0;border-bottom:1px solid var(--border);cursor:pointer;}
+  .aug-item:last-child{border:none;}
+  .aug-label{font-size:0.65rem;}
+  .toggle{width:32px;height:16px;background:#e2e8f0;border-radius:8px;position:relative;cursor:pointer;transition:background 0.2s;}
+  .toggle.on{background:var(--a);}
+  .toggle::after{content:'';position:absolute;width:12px;height:12px;background:#fff;border-radius:50%;top:2px;left:2px;transition:left 0.2s;}
+  .toggle.on::after{left:18px;}
+  .slider-row{display:flex;flex-direction:column;gap:3px;padding:5px 0;}
+  .slider-label{font-size:0.55rem;color:#94a3b8;display:flex;justify-content:space-between;}
+  input[type=range]{width:100%;accent-color:var(--a);}
+  /* Center Canvas */
+  .center{display:flex;flex-direction:column;border-right:1px solid var(--border);}
+  .center-hdr{background:var(--ink);color:#fff;display:flex;align-items:center;gap:12px;padding:10px 20px;flex-wrap:wrap;}
+  .c-btn{background:var(--a);color:#fff;border:none;font-family:'Overpass Mono',monospace;font-size:0.65rem;padding:6px 14px;cursor:pointer;}
+  .c-btn:hover{background:#6d28d9;}
+  .c-btn.teal{background:var(--d);}
+  .c-btn.teal:hover{background:#059669;}
+  .c-btn.amber{background:var(--c);color:#000;}
+  .canvases{display:grid;grid-template-columns:1fr 1fr;flex:1;gap:1px;background:var(--border);}
+  .cv-wrap{background:var(--surface);display:flex;flex-direction:column;}
+  .cv-label{font-size:0.5rem;letter-spacing:2px;color:#94a3b8;padding:6px 10px;border-bottom:1px solid var(--border);}
+  canvas{display:block;width:100%;flex:1;}
+  /* Right panel */
+  .right-panel{background:var(--surface);overflow-y:auto;}
+  .stat-box{padding:14px;border-bottom:1px solid var(--border);}
+  .stat-title{font-size:0.55rem;letter-spacing:2px;color:#94a3b8;margin-bottom:8px;}
+  .stat-grid{display:grid;grid-template-columns:1fr 1fr;gap:6px;}
+  .stat-card{background:var(--bg);border:1px solid var(--border);padding:8px;}
+  .sc-label{font-size:0.5rem;color:#94a3b8;}
+  .sc-val{font-family:'Righteous',sans-serif;font-size:1.2rem;color:var(--a);}
+  .hist-bar{display:flex;align-items:center;gap:6px;margin-bottom:4px;}
+  .hb-label{font-size:0.55rem;width:60px;text-align:right;color:#64748b;}
+  .hb-track{flex:1;height:10px;background:var(--bg);}
+  .hb-fill{height:100%;}
+  .aug-log{padding:14px;max-height:200px;overflow-y:auto;}
+  .log-entry{font-size:0.58rem;padding:3px 0;border-bottom:1px solid var(--border);color:#64748b;}
+  .log-entry.new{color:var(--a);}
+</style>
+</head>
+<body>
+<div class="hdr">
+  <div class="brand">DATA <em>AUG</em> STUDIO</div>
+  <div class="sub">ETHAR.AI / IMAGE AUGMENTATION PIPELINE</div>
+</div>
+<div class="workspace">
+  <!-- Left -->
+  <div class="left-panel">
+    <div class="panel-section">
+      <div class="ps-title">GEOMETRIC</div>
+      <div class="aug-item"><span class="aug-label">Horizontal Flip</span><div class="toggle on" id="t-hflip" onclick="toggleAug(this)"></div></div>
+      <div class="aug-item"><span class="aug-label">Vertical Flip</span><div class="toggle" id="t-vflip" onclick="toggleAug(this)"></div></div>
+      <div class="aug-item"><span class="aug-label">Random Rotate</span><div class="toggle on" id="t-rot" onclick="toggleAug(this)"></div></div>
+      <div class="aug-item"><span class="aug-label">Random Crop</span><div class="toggle on" id="t-crop" onclick="toggleAug(this)"></div></div>
+      <div class="aug-item"><span class="aug-label">Shear</span><div class="toggle" id="t-shear" onclick="toggleAug(this)"></div></div>
+      <div class="slider-row"><div class="slider-label"><span>Rotation Angle</span><span id="rotVal">±25°</span></div><input type="range" id="rotSlider" min="5" max="90" value="25" oninput="document.getElementById('rotVal').textContent='±'+this.value+'°';applyAugs()"></div>
+      <div class="slider-row"><div class="slider-label"><span>Crop Scale</span><span id="cropVal">0.80</span></div><input type="range" id="cropSlider" min="50" max="95" value="80" oninput="document.getElementById('cropVal').textContent=(this.value/100).toFixed(2);applyAugs()"></div>
+    </div>
+    <div class="panel-section">
+      <div class="ps-title">PHOTOMETRIC</div>
+      <div class="aug-item"><span class="aug-label">Brightness</span><div class="toggle on" id="t-bright" onclick="toggleAug(this)"></div></div>
+      <div class="aug-item"><span class="aug-label">Contrast</span><div class="toggle on" id="t-contrast" onclick="toggleAug(this)"></div></div>
+      <div class="aug-item"><span class="aug-label">Saturation</span><div class="toggle" id="t-sat" onclick="toggleAug(this)"></div></div>
+      <div class="aug-item"><span class="aug-label">Gaussian Noise</span><div class="toggle on" id="t-noise" onclick="toggleAug(this)"></div></div>
+      <div class="aug-item"><span class="aug-label">Gaussian Blur</span><div class="toggle" id="t-blur" onclick="toggleAug(this)"></div></div>
+      <div class="slider-row"><div class="slider-label"><span>Brightness ±</span><span id="brightVal">0.30</span></div><input type="range" id="brightSlider" min="5" max="80" value="30" oninput="document.getElementById('brightVal').textContent=(this.value/100).toFixed(2);applyAugs()"></div>
+      <div class="slider-row"><div class="slider-label"><span>Noise σ</span><span id="noiseVal">0.05</span></div><input type="range" id="noiseSlider" min="1" max="30" value="5" oninput="document.getElementById('noiseVal').textContent=(this.value/100).toFixed(2);applyAugs()"></div>
+    </div>
+    <div class="panel-section">
+      <div class="ps-title">ADVANCED</div>
+      <div class="aug-item"><span class="aug-label">CutOut</span><div class="toggle on" id="t-cutout" onclick="toggleAug(this)"></div></div>
+      <div class="aug-item"><span class="aug-label">Mixup</span><div class="toggle" id="t-mixup" onclick="toggleAug(this)"></div></div>
+      <div class="aug-item"><span class="aug-label">Grid Distort</span><div class="toggle" id="t-grid" onclick="toggleAug(this)"></div></div>
+      <div class="aug-item"><span class="aug-label">Color Jitter</span><div class="toggle on" id="t-jitter" onclick="toggleAug(this)"></div></div>
+    </div>
+  </div>
+  <!-- Center -->
+  <div class="center">
+    <div class="center-hdr">
+      <button class="c-btn" onclick="generateNew()">⟳ GENERATE BATCH</button>
+      <button class="c-btn teal" onclick="applyAugs()">APPLY AUGS</button>
+      <button class="c-btn amber" onclick="exportConfig()">EXPORT CONFIG</button>
+      <span style="font-size:0.6rem;color:#64748b;margin-left:auto" id="augCount">Active: 6 augmentations</span>
+    </div>
+    <div class="canvases">
+      <div class="cv-wrap"><div class="cv-label">ORIGINAL</div><canvas id="origC"></canvas></div>
+      <div class="cv-wrap"><div class="cv-label">AUGMENTED #1</div><canvas id="aug1C"></canvas></div>
+      <div class="cv-wrap"><div class="cv-label">AUGMENTED #2</div><canvas id="aug2C"></canvas></div>
+      <div class="cv-wrap"><div class="cv-label">AUGMENTED #3</div><canvas id="aug3C"></canvas></div>
+    </div>
+  </div>
+  <!-- Right -->
+  <div class="right-panel">
+    <div class="stat-box">
+      <div class="stat-title">DATASET STATS</div>
+      <div class="stat-grid">
+        <div class="stat-card"><div class="sc-label">ORIGINAL</div><div class="sc-val">1,200</div></div>
+        <div class="stat-card"><div class="sc-label">AUGMENTED</div><div class="sc-val" id="augCount2">7,200</div></div>
+        <div class="stat-card"><div class="sc-label">MULTIPLIER</div><div class="sc-val">6×</div></div>
+        <div class="stat-card"><div class="sc-label">CLASSES</div><div class="sc-val">12</div></div>
+      </div>
+    </div>
+    <div class="stat-box">
+      <div class="stat-title">CLASS DISTRIBUTION</div>
+      <div id="classHist"></div>
+    </div>
+    <div class="stat-box">
+      <div class="stat-title">AUG INTENSITY PROFILE</div>
+      <canvas id="profileC" height="100" style="width:100%"></canvas>
+    </div>
+    <div class="aug-log">
+      <div class="stat-title">AUG LOG</div>
+      <div id="augLog"></div>
+    </div>
+  </div>
+</div>
+<script>
+let seed=42;
+function rng(){seed=(seed*1664525+1013904223)&0xffffffff;return(seed>>>0)/0xffffffff;}
+function r(){return Math.random();}
+
+// Draw a colorful synthetic "image" (geometric shapes)
+function drawSyntheticImage(canvas,transforms){
+  const W=canvas.clientWidth||200,H=canvas.clientHeight||200;
+  canvas.width=W;canvas.height=H;
+  const ctx=canvas.getContext('2d');
+  ctx.save();
+  // Background
+  const bgColors=['#1a1a2e','#16213e','#0f3460','#1b1b2f'];
+  ctx.fillStyle=bgColors[Math.floor(r()*bgColors.length)];
+  ctx.fillRect(0,0,W,H);
+  // Apply transforms
+  ctx.translate(W/2,H/2);
+  if(transforms.rotate)ctx.rotate((r()-0.5)*2*(transforms.rotAngle||25)*Math.PI/180);
+  if(transforms.hflip&&r()<0.5)ctx.scale(-1,1);
+  if(transforms.vflip&&r()<0.5)ctx.scale(1,-1);
+  const sc=transforms.crop?0.75+r()*0.25:1;
+  ctx.scale(sc,sc);
+  ctx.translate(-W/2,-H/2);
+  // Shapes
+  const shapes=['circle','rect','triangle','star'];
+  const cols=['#ff6b00','#7c3aed','#0ea5e9','#10b981','#f59e0b','#ef4444','#a78bfa','#34d399'];
+  for(let i=0;i<8;i++){
+    const x=r()*W,y=r()*H,sz=20+r()*50;
+    ctx.fillStyle=cols[Math.floor(r()*cols.length)]+'cc';
+    ctx.beginPath();
+    const sh=shapes[Math.floor(r()*shapes.length)];
+    if(sh==='circle'){ctx.arc(x,y,sz/2,0,Math.PI*2);}
+    else if(sh==='rect'){ctx.rect(x-sz/2,y-sz/2,sz,sz*0.6);}
+    else if(sh==='triangle'){ctx.moveTo(x,y-sz/2);ctx.lineTo(x+sz/2,y+sz/2);ctx.lineTo(x-sz/2,y+sz/2);}
+    else{for(let j=0;j<5;j++){const a=j*Math.PI*0.8-Math.PI/2;ctx.lineTo(x+Math.cos(a)*sz/2,y+Math.sin(a)*sz/2);const a2=a+Math.PI*0.4;ctx.lineTo(x+Math.cos(a2)*sz/4,y+Math.sin(a2)*sz/4);}}
+    ctx.fill();
+  }
+  // Noise overlay
+  if(transforms.noise){
+    const noiseLevel=transforms.noiseAmt||0.05;
+    const imgData=ctx.getImageData(0,0,W,H);
+    for(let i=0;i<imgData.data.length;i+=4){
+      const n=(r()-0.5)*noiseLevel*255;
+      imgData.data[i]=Math.min(255,Math.max(0,imgData.data[i]+n));
+      imgData.data[i+1]=Math.min(255,Math.max(0,imgData.data[i+1]+n));
+      imgData.data[i+2]=Math.min(255,Math.max(0,imgData.data[i+2]+n));
+    }
+    ctx.putImageData(imgData,0,0);
+  }
+  // Brightness
+  if(transforms.bright){
+    const b=(r()-0.5)*2*(transforms.brightAmt||0.3);
+    ctx.fillStyle=b>0?`rgba(255,255,255,${b})`:`rgba(0,0,0,${-b})`;
+    ctx.fillRect(0,0,W,H);
+  }
+  // Color jitter
+  if(transforms.jitter){
+    ctx.fillStyle=`hsla(${r()*360},60%,50%,${r()*0.1})`;
+    ctx.fillRect(0,0,W,H);
+  }
+  // CutOut
+  if(transforms.cutout&&r()<0.7){
+    const cx=r()*W,cy=r()*H,cs=20+r()*40;
+    ctx.fillStyle='#000';ctx.fillRect(cx,cy,cs,cs);
+  }
+  // Grid distort (visual hint)
+  if(transforms.grid){
+    ctx.strokeStyle='rgba(255,255,255,0.04)';ctx.lineWidth=1;
+    for(let i=0;i<W;i+=20){ctx.beginPath();ctx.moveTo(i,0);ctx.lineTo(i+(r()-0.5)*8,H);ctx.stroke();}
+  }
+  ctx.restore();
+}
+
+function getAugs(){
+  return{
+    hflip:document.getElementById('t-hflip').classList.contains('on'),
+    vflip:document.getElementById('t-vflip').classList.contains('on'),
+    rotate:document.getElementById('t-rot').classList.contains('on'),
+    rotAngle:+document.getElementById('rotSlider').value,
+    crop:document.getElementById('t-crop').classList.contains('on'),
+    cropScale:+document.getElementById('cropSlider').value/100,
+    bright:document.getElementById('t-bright').classList.contains('on'),
+    brightAmt:+document.getElementById('brightSlider').value/100,
+    contrast:document.getElementById('t-contrast').classList.contains('on'),
+    noise:document.getElementById('t-noise').classList.contains('on'),
+    noiseAmt:+document.getElementById('noiseSlider').value/100,
+    blur:document.getElementById('t-blur').classList.contains('on'),
+    cutout:document.getElementById('t-cutout').classList.contains('on'),
+    mixup:document.getElementById('t-mixup').classList.contains('on'),
+    grid:document.getElementById('t-grid').classList.contains('on'),
+    jitter:document.getElementById('t-jitter').classList.contains('on'),
+    sat:document.getElementById('t-sat').classList.contains('on'),
+    shear:document.getElementById('t-shear').classList.contains('on'),
+  };
+}
+
+function applyAugs(){
+  const augs=getAugs();
+  const active=Object.entries(augs).filter(([k,v])=>v===true).length;
+  document.getElementById('augCount').textContent=`Active: ${active} augmentations`;
+  drawSyntheticImage(document.getElementById('origC'),{});
+  drawSyntheticImage(document.getElementById('aug1C'),augs);
+  drawSyntheticImage(document.getElementById('aug2C'),augs);
+  drawSyntheticImage(document.getElementById('aug3C'),augs);
+  addLog(`Applied ${active} augmentations — batch generated`);
+  drawProfile(augs);
+}
+
+function generateNew(){
+  seed=Math.floor(Math.random()*999999);applyAugs();
+}
+
+function toggleAug(el){
+  el.classList.toggle('on');applyAugs();
+}
+
+function addLog(msg){
+  const log=document.getElementById('augLog');
+  const d=document.createElement('div');d.className='log-entry new';
+  d.textContent=`[${new Date().toLocaleTimeString()}] ${msg}`;
+  log.insertBefore(d,log.firstChild);
+  if(log.children.length>10)log.removeChild(log.lastChild);
+  setTimeout(()=>d.classList.remove('new'),1000);
+}
+
+function buildClassHist(){
+  const classes=['CAT','DOG','CAR','TREE','BIRD','HOUSE','PLANE','SHIP'];
+  const h=document.getElementById('classHist');h.innerHTML='';
+  classes.forEach(c=>{
+    const n=80+Math.floor(Math.random()*50);
+    const div=document.createElement('div');div.className='hist-bar';
+    div.innerHTML=`<div class="hb-label">${c}</div><div class="hb-track"><div class="hb-fill" style="width:${n/130*100}%;background:#7c3aed"></div></div><span style="font-size:0.55rem;color:#64748b">${n}</span>`;
+    h.appendChild(div);
+  });
+}
+
+function drawProfile(augs){
+  const c=document.getElementById('profileC');
+  c.width=c.parentElement.clientWidth-28;c.height=100;
+  const ctx=c.getContext('2d');ctx.clearRect(0,0,c.width,100);
+  const dims=['Geo','Color','Noise','Crop','Cutout','Blend'];
+  const vals=[
+    (augs.rotate||augs.shear?0.7:0.1)+(augs.hflip?0.2:0)+(augs.vflip?0.1:0),
+    (augs.bright?0.5:0)+(augs.contrast?0.3:0)+(augs.sat?0.2:0)+(augs.jitter?0.3:0),
+    (augs.noise?0.6:0)+(augs.blur?0.4:0),
+    augs.crop?0.8:0.1,
+    augs.cutout?0.9:0.05,
+    (augs.mixup?0.7:0)+(augs.grid?0.4:0),
+  ].map(v=>Math.min(1,v));
+  const bW=(c.width-20)/dims.length;
+  dims.forEach((d,i)=>{
+    const x=10+i*bW;const h=vals[i]*80;
+    ctx.fillStyle=`hsl(${260+i*20},70%,65%)`;
+    ctx.fillRect(x+4,100-h,bW-8,h);
+    ctx.font='7px Overpass Mono';ctx.fillStyle='#94a3b8';ctx.textAlign='center';
+    ctx.fillText(d,x+bW/2,98);
+  });
+}
+
+function exportConfig(){
+  const augs=getAugs();
+  const cfg=JSON.stringify({augmentation_pipeline:augs,version:'1.0',framework:'albumentations'},null,2);
+  const blob=new Blob([cfg],{type:'application/json'});
+  const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='aug_config.json';a.click();
+  addLog('Config exported: aug_config.json');
+}
+
+buildClassHist();
+setTimeout(applyAugs,100);
+</script>
+</body>
+</html>

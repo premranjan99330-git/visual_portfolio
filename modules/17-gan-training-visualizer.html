@@ -1,0 +1,251 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>GAN Training Visualizer</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Cutive+Mono&family=Black+Ops+One&display=swap');
+  :root{--bg:#0a0005;--s:#110010;--border:#2a0028;--magenta:#ff00ff;--cyan:#00ffff;--yellow:#ffff00;--green:#00ff88;--text:#e0d0e8;--dim:#4a0048;}
+  *{margin:0;padding:0;box-sizing:border-box;}
+  body{background:var(--bg);color:var(--text);font-family:'Cutive Mono',monospace;min-height:100vh;}
+  .hdr{border-bottom:2px solid var(--magenta);padding:14px 32px;display:flex;justify-content:space-between;align-items:center;}
+  .brand{font-family:'Black Ops One',sans-serif;font-size:1.5rem;letter-spacing:4px;color:var(--magenta);text-shadow:0 0 20px #ff00ff88;}
+  .status{font-size:0.65rem;color:var(--cyan);}
+  .controls{display:flex;gap:10px;padding:10px 32px;border-bottom:1px solid var(--border);flex-wrap:wrap;align-items:center;}
+  .btn{background:transparent;border:1px solid var(--magenta);color:var(--magenta);font-family:'Cutive Mono',monospace;font-size:0.7rem;padding:6px 16px;cursor:pointer;transition:all 0.2s;}
+  .btn:hover,.btn.active{background:var(--magenta);color:#000;}
+  .btn.c{border-color:var(--cyan);color:var(--cyan);}
+  .btn.c:hover{background:var(--cyan);color:#000;}
+  select{background:var(--s);border:1px solid var(--dim);color:var(--text);font-family:'Cutive Mono',monospace;font-size:0.7rem;padding:5px 10px;}
+  .layout{display:grid;grid-template-columns:1fr 1fr;gap:0;}
+  .half{border-right:1px solid var(--border);border-bottom:1px solid var(--border);}
+  .half:nth-child(even){border-right:none;}
+  .panel-hdr{padding:10px 16px;border-bottom:1px solid var(--border);font-size:0.55rem;letter-spacing:3px;color:var(--dim);display:flex;justify-content:space-between;}
+  .panel-hdr span{color:var(--magenta);}
+  canvas{display:block;width:100%;}
+  .generated-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:3px;padding:12px;}
+  .gen-cell{background:var(--s);border:1px solid var(--dim);aspect-ratio:1;display:flex;align-items:center;justify-content:center;}
+  .metrics-bar{display:flex;gap:20px;padding:8px 32px;border-bottom:1px solid var(--border);flex-wrap:wrap;}
+  .mb{display:flex;flex-direction:column;}
+  .mb-label{font-size:0.5rem;color:var(--dim);letter-spacing:2px;}
+  .mb-val{font-family:'Black Ops One',sans-serif;font-size:1.2rem;}
+  .mb-val.m{color:var(--magenta);}
+  .mb-val.c{color:var(--cyan);}
+  .mb-val.y{color:var(--yellow);}
+  .mb-val.g{color:var(--green);}
+</style>
+</head>
+<body>
+<div class="hdr">
+  <div class="brand">GAN TRAINING MONITOR</div>
+  <div class="status" id="statusLine">● IDLE — PRESS START TO TRAIN</div>
+</div>
+<div class="controls">
+  <button class="btn" id="trainBtn" onclick="toggleTrain()">▶ START</button>
+  <button class="btn c" onclick="reset()">■ RESET</button>
+  <select id="archSel"><option>DCGAN</option><option>StyleGAN</option><option>CycleGAN</option><option>ProGAN</option></select>
+  <select id="datasetSel"><option>MNIST Digits</option><option>CIFAR-10</option><option>CelebA Faces</option><option>Synthetic</option></select>
+  <span style="font-size:0.7rem;color:var(--dim)">LR G:</span>
+  <input type="range" id="lrG" min="1" max="50" value="2" style="accent-color:var(--magenta);width:80px">
+  <span style="font-size:0.7rem;color:var(--dim)">LR D:</span>
+  <input type="range" id="lrD" min="1" max="50" value="2" style="accent-color:var(--cyan);width:80px">
+</div>
+<div class="metrics-bar">
+  <div class="mb"><div class="mb-label">EPOCH</div><div class="mb-val m" id="mEpoch">0</div></div>
+  <div class="mb"><div class="mb-label">G LOSS</div><div class="mb-val m" id="mGLoss">—</div></div>
+  <div class="mb"><div class="mb-label">D LOSS</div><div class="mb-val c" id="mDLoss">—</div></div>
+  <div class="mb"><div class="mb-label">D(x) REAL</div><div class="mb-val g" id="mDx">—</div></div>
+  <div class="mb"><div class="mb-label">D(G(z)) FAKE</div><div class="mb-val y" id="mDGz">—</div></div>
+  <div class="mb"><div class="mb-label">FID SCORE</div><div class="mb-val m" id="mFID">—</div></div>
+  <div class="mb"><div class="mb-label">MODE COLLAPSE</div><div class="mb-val c" id="mMode">NONE</div></div>
+</div>
+<div class="layout">
+  <!-- Loss curves -->
+  <div class="half">
+    <div class="panel-hdr">TRAINING LOSSES <span id="liveLabel">LIVE</span></div>
+    <canvas id="lossC" height="240"></canvas>
+  </div>
+  <!-- Generated samples -->
+  <div class="half">
+    <div class="panel-hdr">GENERATED SAMPLES <span id="qualLabel">EP 0</span></div>
+    <div class="generated-grid" id="genGrid"></div>
+  </div>
+  <!-- Discriminator score distribution -->
+  <div class="half">
+    <div class="panel-hdr">DISCRIMINATOR SCORE DISTRIBUTION <span>REAL vs FAKE</span></div>
+    <canvas id="distC" height="200"></canvas>
+  </div>
+  <!-- FID / quality over time -->
+  <div class="half">
+    <div class="panel-hdr">FID SCORE vs EPOCH <span>LOWER = BETTER</span></div>
+    <canvas id="fidC" height="200"></canvas>
+  </div>
+</div>
+<script>
+let epoch=0, running=false, timer=null;
+let gLosses=[], dLosses=[], dxHistory=[], dgzHistory=[], fidHistory=[];
+
+function sigm(x){return 1/(1+Math.exp(-x));}
+
+function step(){
+  epoch++;
+  const prog=Math.min(epoch/200,1);
+  // G loss: should decrease and stabilize
+  const gL=2.0*Math.exp(-prog*1.5)+0.5+Math.sin(epoch*0.3)*0.15*Math.exp(-prog*2)+Math.random()*0.2;
+  // D loss: should also stabilize near ln(2) ≈ 0.693
+  const dL=1.4*Math.exp(-prog*2)+0.5+Math.sin(epoch*0.25)*0.12*Math.exp(-prog*2)+Math.random()*0.15;
+  const dx=0.5+0.45*Math.exp(-prog*3)+Math.random()*0.05; // real → 0.5
+  const dgz=0.5-0.4*Math.exp(-prog*2.5)+Math.random()*0.05; // fake → 0.5
+  const fid=Math.max(2,180*Math.exp(-prog*4)+5+Math.random()*3);
+  gLosses.push(gL); dLosses.push(dL); dxHistory.push(dx); dgzHistory.push(dgz); fidHistory.push(fid);
+  document.getElementById('mEpoch').textContent=epoch;
+  document.getElementById('mGLoss').textContent=gL.toFixed(4);
+  document.getElementById('mDLoss').textContent=dL.toFixed(4);
+  document.getElementById('mDx').textContent=dx.toFixed(3);
+  document.getElementById('mDGz').textContent=dgz.toFixed(3);
+  document.getElementById('mFID').textContent=fid.toFixed(1);
+  document.getElementById('mMode').textContent=fid<20?'NONE':fid<50?'MILD':'RISK';
+  document.getElementById('qualLabel').textContent='EP '+epoch;
+  document.getElementById('liveLabel').textContent=epoch%2===0?'●':' ';
+  document.getElementById('statusLine').textContent=`● TRAINING — ARCH: ${document.getElementById('archSel').value} — DATASET: ${document.getElementById('datasetSel').value}`;
+  drawLoss(); drawDist(prog); drawFID(); drawSamples(prog);
+  if(epoch>=200)stopTrain();
+}
+
+function drawLoss(){
+  const c=document.getElementById('lossC');
+  const W=c.parentElement.clientWidth; c.width=W; c.height=240;
+  const ctx=c.getContext('2d'); ctx.clearRect(0,0,W,240);
+  const pad=36;
+  const allV=[...gLosses,...dLosses]; if(!allV.length)return;
+  const maxV=Math.max(...allV)*1.1; const minV=0;
+  // Grid
+  ctx.strokeStyle='#2a0028'; ctx.lineWidth=1; ctx.setLineDash([2,4]);
+  for(let i=0;i<=5;i++){const y=pad+(240-pad*2)*i/5;ctx.beginPath();ctx.moveTo(pad,y);ctx.lineTo(W-pad,y);ctx.stroke();ctx.font='8px Cutive Mono';ctx.fillStyle='#4a0048';ctx.textAlign='right';ctx.fillText((maxV*(1-i/5)).toFixed(2),pad-4,y+3);}
+  ctx.setLineDash([]);
+  // Lines
+  function drawLine(data,col){
+    if(data.length<2)return;
+    ctx.beginPath();ctx.strokeStyle=col;ctx.lineWidth=2;
+    data.forEach((v,i)=>{const x=pad+i/(Math.max(data.length-1,1))*(W-pad*2);const y=pad+((maxV-v)/(maxV-minV))*(240-pad*2);i===0?ctx.moveTo(x,y):ctx.lineTo(x,y);});
+    ctx.stroke();
+  }
+  drawLine(gLosses,'#ff00ff'); drawLine(dLosses,'#00ffff');
+  // Legend
+  ctx.font='9px Cutive Mono'; ctx.textAlign='left';
+  ctx.fillStyle='#ff00ff'; ctx.fillText('— G LOSS',pad+4,20);
+  ctx.fillStyle='#00ffff'; ctx.fillText('— D LOSS',pad+80,20);
+}
+
+function drawDist(prog){
+  const c=document.getElementById('distC');
+  const W=c.parentElement.clientWidth; c.width=W; c.height=200;
+  const ctx=c.getContext('2d'); ctx.clearRect(0,0,W,200);
+  const pad=30;
+  function gaussian(x,mu,sigma){return Math.exp(-0.5*((x-mu)/sigma)**2)/(sigma*Math.sqrt(2*Math.PI));}
+  const realMu=0.5+0.35*Math.exp(-prog*3); // converges to 0.5
+  const fakeMu=0.5-0.3*Math.exp(-prog*2.5);
+  const sigma=0.12+0.05*Math.exp(-prog);
+  const n=100;
+  ['real','fake'].forEach((type,ti)=>{
+    const mu=type==='real'?realMu:fakeMu;
+    ctx.beginPath();
+    for(let i=0;i<=n;i++){
+      const x=i/n; const y=gaussian(x,mu,sigma);
+      const px=pad+x*(W-pad*2); const py=200-pad-y*(200-pad*2)/2.5;
+      i===0?ctx.moveTo(px,py):ctx.lineTo(px,py);
+    }
+    ctx.strokeStyle=type==='real'?'#00ff88':'#ffff00'; ctx.lineWidth=2; ctx.stroke();
+    const grad=ctx.createLinearGradient(0,0,0,200);
+    grad.addColorStop(0,type==='real'?'rgba(0,255,136,0.15)':'rgba(255,255,0,0.15)');
+    grad.addColorStop(1,'transparent');
+    ctx.beginPath();
+    for(let i=0;i<=n;i++){const x=i/n;const y=gaussian(x,mu,sigma);const px=pad+x*(W-pad*2);const py=200-pad-y*(200-pad*2)/2.5;i===0?ctx.moveTo(px,py):ctx.lineTo(px,py);}
+    ctx.lineTo(W-pad,200-pad); ctx.lineTo(pad,200-pad); ctx.fillStyle=grad; ctx.fill();
+  });
+  ctx.font='8px Cutive Mono'; ctx.textAlign='center';
+  ctx.fillStyle='#00ff88'; ctx.fillText('REAL',pad+(realMu*(W-pad*2)),180);
+  ctx.fillStyle='#ffff00'; ctx.fillText('FAKE',pad+(fakeMu*(W-pad*2)),168);
+  ctx.fillStyle='#4a0048'; ctx.fillText('DISCRIMINATOR SCORE →',W/2,196);
+}
+
+function drawFID(){
+  const c=document.getElementById('fidC');
+  const W=c.parentElement.clientWidth; c.width=W; c.height=200;
+  const ctx=c.getContext('2d'); ctx.clearRect(0,0,W,200);
+  if(fidHistory.length<2)return;
+  const pad=36; const maxV=Math.max(...fidHistory);
+  // Target line
+  ctx.strokeStyle='#2a0028'; ctx.lineWidth=1; ctx.setLineDash([4,4]);
+  const goodY=pad+(200-pad*2)*(1-20/maxV);
+  ctx.beginPath(); ctx.moveTo(pad,goodY); ctx.lineTo(W-pad,goodY); ctx.stroke();
+  ctx.font='8px Cutive Mono'; ctx.fillStyle='#4a0048'; ctx.textAlign='left'; ctx.fillText('TARGET <20',pad+4,goodY-4);
+  ctx.setLineDash([]);
+  ctx.beginPath(); ctx.strokeStyle='#ff00ff'; ctx.lineWidth=2;
+  fidHistory.forEach((v,i)=>{const x=pad+i/(Math.max(fidHistory.length-1,1))*(W-pad*2);const y=pad+((maxV-v)/maxV)*(200-pad*2);i===0?ctx.moveTo(x,y):ctx.lineTo(x,y);});
+  ctx.stroke();
+  // Fill
+  ctx.beginPath();
+  fidHistory.forEach((v,i)=>{const x=pad+i/(Math.max(fidHistory.length-1,1))*(W-pad*2);const y=pad+((maxV-v)/maxV)*(200-pad*2);i===0?ctx.moveTo(x,y):ctx.lineTo(x,y);});
+  ctx.lineTo(W-pad,200-pad); ctx.lineTo(pad,200-pad);
+  const grad=ctx.createLinearGradient(0,pad,0,200-pad);
+  grad.addColorStop(0,'rgba(255,0,255,0.2)'); grad.addColorStop(1,'transparent');
+  ctx.fillStyle=grad; ctx.fill();
+  for(let i=0;i<=4;i++){ctx.font='8px Cutive Mono';ctx.fillStyle='#4a0048';ctx.textAlign='right';ctx.fillText(Math.round(maxV*(1-i/4)),pad-4,pad+(200-pad*2)*i/4+3);}
+}
+
+function drawSamples(prog){
+  const grid=document.getElementById('genGrid');
+  grid.innerHTML='';
+  for(let i=0;i<8;i++){
+    const wrap=document.createElement('div'); wrap.className='gen-cell';
+    const cv=document.createElement('canvas'); cv.width=80; cv.height=80; cv.style.width='100%';
+    const ctx=cv.getContext('2d');
+    // Quality degrades at low epochs, improves over time
+    const noise=Math.max(0,1-prog*1.5);
+    ctx.fillStyle='#110010'; ctx.fillRect(0,0,80,80);
+    // Draw something that looks progressively more like shapes
+    if(prog<0.1){
+      // pure noise
+      const id=ctx.getImageData(0,0,80,80);
+      for(let p=0;p<id.data.length;p+=4){id.data[p]=Math.random()*200;id.data[p+1]=Math.random()*100;id.data[p+2]=Math.random()*200;id.data[p+3]=255;}
+      ctx.putImageData(id,0,0);
+    } else {
+      // Progressively cleaner shapes
+      const clarity=Math.min(1,prog*2);
+      const digit=i%10;
+      ctx.fillStyle=`rgba(${Math.round(100+Math.random()*100)},0,${Math.round(150+Math.random()*80)},${0.3+noise*0.7})`;
+      ctx.beginPath(); ctx.arc(40,40,25*clarity,0,Math.PI*2); ctx.fill();
+      if(clarity>0.3){
+        ctx.strokeStyle='#ff00ff'; ctx.lineWidth=2*clarity;
+        ctx.beginPath(); ctx.arc(40,40,20,0,Math.PI*2); ctx.stroke();
+      }
+      if(noise>0.1){
+        const id=ctx.getImageData(0,0,80,80);
+        for(let p=0;p<id.data.length;p+=4){if(Math.random()<noise*0.4){id.data[p]+=Math.random()*50-25;id.data[p+1]+=Math.random()*30-15;id.data[p+2]+=Math.random()*50-25;}}
+        ctx.putImageData(id,0,0);
+      }
+    }
+    wrap.appendChild(cv); grid.appendChild(wrap);
+  }
+}
+
+function toggleTrain(){
+  if(running)stopTrain();
+  else{running=true;document.getElementById('trainBtn').textContent='⏸ PAUSE';timer=setInterval(step,150);}
+}
+function stopTrain(){running=false;document.getElementById('trainBtn').textContent='▶ RESUME';clearInterval(timer);document.getElementById('statusLine').textContent='● PAUSED';}
+function reset(){
+  stopTrain(); epoch=0;
+  gLosses.length=dLosses.length=dxHistory.length=dgzHistory.length=fidHistory.length=0;
+  document.getElementById('trainBtn').textContent='▶ START';
+  ['mEpoch','mGLoss','mDLoss','mDx','mDGz','mFID'].forEach(id=>document.getElementById(id).textContent='—');
+  document.getElementById('mEpoch').textContent='0';
+  document.getElementById('mMode').textContent='NONE';
+  document.getElementById('statusLine').textContent='● IDLE — PRESS START TO TRAIN';
+  drawSamples(0); drawLoss(); drawDist(0); drawFID();
+}
+drawSamples(0);
+</script>
+</body>
+</html>

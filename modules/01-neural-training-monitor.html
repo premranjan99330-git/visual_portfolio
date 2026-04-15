@@ -1,0 +1,397 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Neural Training Monitor — Ethar AI</title>
+<link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Unbounded:wght@400;700;900&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0a0a0a;
+    --surface: #111111;
+    --card: #161616;
+    --accent: #FF3B00;
+    --accent2: #00FFB2;
+    --accent3: #FFD600;
+    --text: #F0EDE8;
+    --muted: #555;
+    --border: #222;
+    --font-display: 'Unbounded', sans-serif;
+    --font-mono: 'Space Mono', monospace;
+  }
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--font-mono);
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+  /* Scanline overlay */
+  body::before {
+    content:'';
+    position:fixed; top:0; left:0; width:100%; height:100%;
+    background: repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(255,255,255,0.015) 2px, rgba(255,255,255,0.015) 4px);
+    pointer-events:none; z-index:999;
+  }
+
+  header {
+    display:flex; align-items:center; justify-content:space-between;
+    padding: 24px 40px;
+    border-bottom: 1px solid var(--border);
+  }
+  .logo {
+    font-family: var(--font-display);
+    font-weight:900; font-size:18px;
+    letter-spacing: -0.5px;
+  }
+  .logo span { color: var(--accent); }
+  .status-pill {
+    display:flex; align-items:center; gap:8px;
+    font-size:11px; letter-spacing:2px; text-transform:uppercase;
+    color: var(--accent2);
+  }
+  .status-dot {
+    width:8px; height:8px; border-radius:50%; background:var(--accent2);
+    animation: blink 1.2s ease infinite;
+  }
+  @keyframes blink { 0%,100%{opacity:1} 50%{opacity:0.2} }
+
+  .top-metrics {
+    display:grid; grid-template-columns: repeat(4,1fr);
+    border-bottom: 1px solid var(--border);
+  }
+  .metric {
+    padding: 32px 40px;
+    border-right: 1px solid var(--border);
+    animation: fadeUp 0.6s ease both;
+  }
+  .metric:last-child { border-right:none; }
+  .metric-label {
+    font-size:10px; letter-spacing:3px; text-transform:uppercase;
+    color: var(--muted); margin-bottom:12px;
+  }
+  .metric-value {
+    font-family: var(--font-display);
+    font-size:42px; font-weight:900; line-height:1;
+  }
+  .metric-value.red { color: var(--accent); }
+  .metric-value.green { color: var(--accent2); }
+  .metric-value.yellow { color: var(--accent3); }
+  .metric-delta {
+    margin-top:8px; font-size:11px; color: var(--muted);
+  }
+  .metric-delta.up { color: var(--accent2); }
+  .metric-delta.down { color: var(--accent); }
+
+  .main-grid {
+    display:grid; grid-template-columns: 2fr 1fr;
+    min-height: calc(100vh - 180px);
+  }
+  .left-panel { border-right: 1px solid var(--border); }
+  .panel-header {
+    padding: 24px 40px;
+    border-bottom: 1px solid var(--border);
+    display:flex; justify-content:space-between; align-items:center;
+  }
+  .panel-title {
+    font-family: var(--font-display);
+    font-size:13px; font-weight:700; letter-spacing:1px;
+    text-transform:uppercase;
+  }
+  .epoch-tag {
+    font-size:11px; letter-spacing:2px; color: var(--accent);
+    background: rgba(255,59,0,0.1);
+    border: 1px solid rgba(255,59,0,0.3);
+    padding: 4px 12px;
+  }
+
+  .chart-area {
+    padding: 40px;
+    position:relative;
+  }
+  canvas#lossChart {
+    width:100%; height:320px; display:block;
+  }
+
+  .chart-legend {
+    display:flex; gap:24px; margin-top:16px;
+  }
+  .legend-item {
+    display:flex; align-items:center; gap:8px;
+    font-size:11px; letter-spacing:1px; text-transform:uppercase; color:var(--muted);
+  }
+  .legend-dot { width:10px; height:10px; border-radius:50%; }
+
+  /* Layer activity */
+  .layers-section { padding:40px; }
+  .layer-row {
+    display:flex; align-items:center; gap:16px;
+    margin-bottom:16px;
+    animation: fadeUp 0.5s ease both;
+  }
+  .layer-name { font-size:11px; letter-spacing:1px; color:var(--muted); width:80px; text-align:right; flex-shrink:0; }
+  .layer-bar-bg {
+    flex:1; height:20px; background:var(--border); position:relative; overflow:hidden;
+  }
+  .layer-bar-fill {
+    height:100%; transition: width 1.5s cubic-bezier(.77,0,.18,1);
+    position:relative;
+  }
+  .layer-bar-fill::after {
+    content:''; position:absolute; top:0; right:0; width:2px; height:100%;
+    background:rgba(255,255,255,0.8);
+  }
+  .layer-val { font-size:11px; width:40px; text-align:right; flex-shrink:0; }
+
+  /* Right panel */
+  .right-panel {}
+  .right-section {
+    padding:32px;
+    border-bottom: 1px solid var(--border);
+  }
+  .right-section:last-child { border-bottom:none; }
+  .rsec-title {
+    font-size:10px; letter-spacing:3px; text-transform:uppercase;
+    color:var(--muted); margin-bottom:20px;
+  }
+
+  .confusion-grid {
+    display:grid; grid-template-columns: repeat(4,1fr); gap:3px;
+  }
+  .conf-cell {
+    aspect-ratio:1; display:flex; align-items:center; justify-content:center;
+    font-family:var(--font-display); font-size:14px; font-weight:700;
+    transition: background 1s ease;
+  }
+
+  .log-lines { display:flex; flex-direction:column; gap:8px; }
+  .log-line {
+    font-size:11px; line-height:1.5;
+    padding-left:12px; border-left:2px solid var(--border);
+    color: var(--muted);
+  }
+  .log-line.highlight { border-color:var(--accent2); color: var(--accent2); }
+  .log-line.warn { border-color:var(--accent3); color:var(--accent3); }
+  .log-line.error { border-color:var(--accent); color:var(--accent); }
+
+  .hyperparams { display:flex; flex-direction:column; gap:10px; }
+  .hp-row {
+    display:flex; justify-content:space-between; align-items:center;
+    font-size:12px;
+  }
+  .hp-key { color:var(--muted); }
+  .hp-val { font-weight:700; }
+
+  @keyframes fadeUp {
+    from { opacity:0; transform:translateY(20px); }
+    to { opacity:1; transform:translateY(0); }
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="logo">ETHAR <span>AI</span> — TRAINING MONITOR</div>
+  <div class="status-pill">
+    <div class="status-dot"></div>
+    LIVE · EPOCH 47/100
+  </div>
+</header>
+
+<div class="top-metrics">
+  <div class="metric" style="animation-delay:.05s">
+    <div class="metric-label">Training Loss</div>
+    <div class="metric-value red" id="trainLoss">0.1842</div>
+    <div class="metric-delta down" id="lossDelta">↓ 12.3% vs last epoch</div>
+  </div>
+  <div class="metric" style="animation-delay:.1s">
+    <div class="metric-label">Validation Acc</div>
+    <div class="metric-value green">94.7%</div>
+    <div class="metric-delta up">↑ 1.1% vs last epoch</div>
+  </div>
+  <div class="metric" style="animation-delay:.15s">
+    <div class="metric-label">Learning Rate</div>
+    <div class="metric-value yellow">3e-4</div>
+    <div class="metric-delta">cosine annealing</div>
+  </div>
+  <div class="metric" style="animation-delay:.2s">
+    <div class="metric-label">GPU Utilization</div>
+    <div class="metric-value" id="gpuVal">87%</div>
+    <div class="metric-delta">A100 · 80GB VRAM</div>
+  </div>
+</div>
+
+<div class="main-grid">
+  <div class="left-panel">
+    <div class="panel-header">
+      <div class="panel-title">Loss Curves</div>
+      <div class="epoch-tag">EPOCH 47</div>
+    </div>
+    <div class="chart-area">
+      <canvas id="lossChart" width="800" height="320"></canvas>
+      <div class="chart-legend">
+        <div class="legend-item"><div class="legend-dot" style="background:var(--accent)"></div> Training Loss</div>
+        <div class="legend-item"><div class="legend-dot" style="background:var(--accent2)"></div> Validation Loss</div>
+        <div class="legend-item"><div class="legend-dot" style="background:var(--accent3)"></div> Accuracy</div>
+      </div>
+    </div>
+
+    <div class="panel-header">
+      <div class="panel-title">Layer Activation Norms</div>
+    </div>
+    <div class="layers-section" id="layersSection"></div>
+  </div>
+
+  <div class="right-panel">
+    <div class="right-section">
+      <div class="rsec-title">Confusion Matrix (4-class sample)</div>
+      <div class="confusion-grid" id="confGrid"></div>
+    </div>
+    <div class="right-section">
+      <div class="rsec-title">Hyperparameters</div>
+      <div class="hyperparams">
+        <div class="hp-row"><span class="hp-key">Model</span><span class="hp-val">ViT-L/32</span></div>
+        <div class="hp-row"><span class="hp-key">Optimizer</span><span class="hp-val">AdamW</span></div>
+        <div class="hp-row"><span class="hp-key">Batch Size</span><span class="hp-val">256</span></div>
+        <div class="hp-row"><span class="hp-key">Weight Decay</span><span class="hp-val">0.01</span></div>
+        <div class="hp-row"><span class="hp-key">Dropout</span><span class="hp-val">0.15</span></div>
+        <div class="hp-row"><span class="hp-key">Dataset</span><span class="hp-val">ImageNet-1K</span></div>
+        <div class="hp-row"><span class="hp-key">Warmup Steps</span><span class="hp-val">10,000</span></div>
+      </div>
+    </div>
+    <div class="right-section">
+      <div class="rsec-title">Training Log</div>
+      <div class="log-lines" id="logLines"></div>
+    </div>
+  </div>
+</div>
+
+<script>
+// ---- Loss Chart ----
+const canvas = document.getElementById('lossChart');
+const ctx = canvas.getContext('2d');
+canvas.width = canvas.offsetWidth * window.devicePixelRatio;
+canvas.height = 320 * window.devicePixelRatio;
+ctx.scale(window.devicePixelRatio, window.devicePixelRatio);
+
+const W = canvas.offsetWidth, H = 320;
+const epochs = 47;
+const trainLoss = [], valLoss = [], acc = [];
+for(let i=0;i<epochs;i++){
+  const t = i/epochs;
+  trainLoss.push(2.3 * Math.exp(-3.5*t) + 0.08 + Math.random()*0.05);
+  valLoss.push(2.1 * Math.exp(-3.2*t) + 0.12 + Math.random()*0.07);
+  acc.push(0.3 + 0.65*(1-Math.exp(-4*t)) + Math.random()*0.02);
+}
+
+function drawChart(){
+  ctx.clearRect(0,0,W,H);
+  const pad = {t:20,r:20,b:40,l:50};
+  const cw = W-pad.l-pad.r, ch = H-pad.t-pad.b;
+
+  // Grid
+  ctx.strokeStyle = '#1e1e1e'; ctx.lineWidth=1;
+  for(let i=0;i<=5;i++){
+    const y = pad.t + ch*(i/5);
+    ctx.beginPath(); ctx.moveTo(pad.l,y); ctx.lineTo(pad.l+cw,y); ctx.stroke();
+  }
+
+  function drawLine(data, color, minV, maxV){
+    ctx.strokeStyle = color; ctx.lineWidth=2.5; ctx.lineJoin='round';
+    ctx.shadowColor = color; ctx.shadowBlur=8;
+    ctx.beginPath();
+    data.forEach((v,i)=>{
+      const x = pad.l + cw*(i/(data.length-1));
+      const y = pad.t + ch*(1-(v-minV)/(maxV-minV));
+      i===0?ctx.moveTo(x,y):ctx.lineTo(x,y);
+    });
+    ctx.stroke();
+    ctx.shadowBlur=0;
+  }
+
+  drawLine(trainLoss, '#FF3B00', 0, 2.5);
+  drawLine(valLoss, '#00FFB2', 0, 2.5);
+
+  // Acc on secondary axis (0-1 -> same space)
+  const accScaled = acc.map(v=>v);
+  drawLine(accScaled,'#FFD600', 0, 1);
+
+  // X axis labels
+  ctx.fillStyle='#444'; ctx.font='10px Space Mono'; ctx.textAlign='center';
+  for(let i=0;i<=epochs;i+=10){
+    const x = pad.l+cw*(i/epochs);
+    ctx.fillText('E'+i, x, H-10);
+  }
+}
+drawChart();
+
+// ---- Layers ----
+const layers = [
+  {name:'EMBED', val:0.92, color:'#FF3B00'},
+  {name:'ATTN 1', val:0.78, color:'#FF6B00'},
+  {name:'ATTN 2', val:0.85, color:'#FF3B00'},
+  {name:'FFN 1', val:0.61, color:'#00FFB2'},
+  {name:'ATTN 3', val:0.74, color:'#FF6B00'},
+  {name:'FFN 2', val:0.88, color:'#00FFB2'},
+  {name:'HEAD', val:0.95, color:'#FFD600'},
+];
+const ls = document.getElementById('layersSection');
+layers.forEach((l,i)=>{
+  const row = document.createElement('div'); row.className='layer-row';
+  row.style.animationDelay = (i*0.07)+'s';
+  row.innerHTML=`
+    <div class="layer-name">${l.name}</div>
+    <div class="layer-bar-bg"><div class="layer-bar-fill" data-w="${l.val*100}" style="width:0%;background:${l.color}22;border-left:3px solid ${l.color}"></div></div>
+    <div class="layer-val" style="color:${l.color}">${(l.val*100).toFixed(0)}%</div>
+  `;
+  ls.appendChild(row);
+});
+setTimeout(()=>{
+  document.querySelectorAll('.layer-bar-fill').forEach(b=>{
+    b.style.width = b.dataset.w+'%';
+  });
+},300);
+
+// ---- Confusion Matrix ----
+const confVals = [
+  [312,8,4,2], [6,298,10,5], [3,7,289,12], [2,4,9,301]
+];
+const maxConf = 312;
+const cg = document.getElementById('confGrid');
+confVals.forEach(row=>row.forEach(v=>{
+  const cell = document.createElement('div'); cell.className='conf-cell';
+  const intensity = v/maxConf;
+  const isHigh = intensity > 0.8;
+  cell.style.background = isHigh
+    ? `rgba(0,255,178,${intensity*0.7})`
+    : `rgba(255,59,0,${intensity*0.5})`;
+  cell.style.color = isHigh ? '#fff' : 'rgba(255,255,255,0.6)';
+  cell.textContent = v;
+  cg.appendChild(cell);
+}));
+
+// ---- Log ----
+const logs = [
+  {t:'highlight', m:'[47/100] val_loss=0.2134 acc=94.7%'},
+  {t:'normal',    m:'Checkpoint saved → epoch_047.pt'},
+  {t:'warn',      m:'LR plateau detected · annealing'},
+  {t:'normal',    m:'[46/100] val_loss=0.2209 acc=93.6%'},
+  {t:'normal',    m:'Gradient norm: 1.243'},
+  {t:'error',     m:'WARN: batch #2041 NaN skipped'},
+];
+const ll = document.getElementById('logLines');
+logs.forEach(l=>{
+  const d = document.createElement('div');
+  d.className='log-line '+l.t; d.textContent=l.m; ll.appendChild(d);
+});
+
+// ---- Live GPU flicker ----
+let gpuBase = 87;
+setInterval(()=>{
+  gpuBase = Math.min(99, Math.max(70, gpuBase + (Math.random()-0.5)*4));
+  document.getElementById('gpuVal').textContent = gpuBase.toFixed(0)+'%';
+},1800);
+</script>
+</body>
+</html>
